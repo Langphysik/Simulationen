@@ -137,7 +137,14 @@
 const statusEl=document.getElementById("status"), dot=document.getElementById("dot");
 if("serviceWorker" in navigator){
   navigator.serviceWorker.register("sw.js").catch(()=>{statusEl.textContent="Offline-Modus nicht verfügbar";});
-  navigator.serviceWorker.ready.then(()=>{statusEl.textContent="Alles auf dem Gerät gespeichert, läuft auch ohne Internet"; dot.classList.add("ok");});
+  /* Der Status prüft den Speicher selbst, denn andere Apps unter derselben Adresse können ihn löschen */
+  const check=async n=>{
+    if(await caches.match("vendor/pptxgen.bundle.js")){
+      statusEl.textContent="Alles auf dem Gerät gespeichert, läuft auch ohne Internet"; dot.classList.add("ok");
+    }else if(n>0) setTimeout(()=>check(n-1),1000);
+    else statusEl.textContent="Noch nicht gespeichert: Bitte einmal mit Internet öffnen";
+  };
+  navigator.serviceWorker.ready.then(()=>check(30));
 }else{
   statusEl.textContent="Offline-Modus wird von diesem Browser nicht unterstützt";
 }
