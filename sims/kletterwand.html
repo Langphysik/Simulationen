@@ -1,0 +1,692 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kletterwand – Analytische Geometrie in 3D</title>
+<style>
+  :root{
+    --ink:#0f172a;
+    --slate:#475569;
+    --slate-light:#94a3b8;
+    --line:#e2e8f0;
+    --paper:#f8fafc;
+    --blue:#2563eb;
+    --blue-soft:#dbeafe;
+    --red:#dc2626;
+    --green:#059669;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    background:var(--paper);
+    color:var(--ink);
+    font-family:"Segoe UI",system-ui,-apple-system,Roboto,sans-serif;
+    line-height:1.5;
+  }
+  header{
+    padding:20px 24px 14px;
+    border-bottom:1px solid var(--line);
+    background:#fff;
+  }
+  header h1{margin:0;font-size:22px;letter-spacing:-0.01em}
+  header p{margin:4px 0 0;color:var(--slate);font-size:14px;max-width:80ch}
+  main{
+    display:grid;
+    grid-template-columns:minmax(0,1fr) 340px;
+    gap:18px;
+    padding:18px 24px;
+    align-items:start;
+  }
+  .card{
+    background:#fff;
+    border:1px solid var(--line);
+    border-radius:12px;
+    box-shadow:0 1px 2px rgba(15,23,42,.04);
+  }
+  .stage{padding:8px;position:relative}
+  canvas{display:block;width:100%;border-radius:8px;touch-action:none;cursor:grab}
+  canvas:active{cursor:grabbing}
+  .hint{
+    position:absolute;left:18px;bottom:16px;
+    font-size:12px;color:var(--slate-light);
+    background:rgba(255,255,255,.8);padding:2px 8px;border-radius:6px;
+  }
+  .panel{padding:16px 18px 20px}
+  .panel h2{
+    font-size:12px;text-transform:uppercase;letter-spacing:.08em;
+    color:var(--slate);margin:0 0 10px;font-weight:700;
+  }
+  .panel h2:not(:first-child){margin-top:22px;padding-top:16px;border-top:1px solid var(--line)}
+  .ctrl{margin-bottom:14px}
+  .ctrl label{
+    display:flex;justify-content:space-between;align-items:baseline;
+    font-size:13px;font-weight:600;margin-bottom:4px;
+  }
+  .ctrl .val{font-variant-numeric:tabular-nums;color:var(--blue);font-weight:700}
+  input[type=range]{
+    width:100%;-webkit-appearance:none;appearance:none;height:4px;border-radius:3px;
+    background:var(--line);outline:none;
+  }
+  input[type=range]::-webkit-slider-thumb{
+    -webkit-appearance:none;width:18px;height:18px;border-radius:50%;
+    background:var(--blue);cursor:pointer;border:3px solid #fff;
+    box-shadow:0 1px 4px rgba(37,99,235,.5);
+  }
+  input[type=range]::-moz-range-thumb{
+    width:14px;height:14px;border-radius:50%;background:var(--blue);
+    cursor:pointer;border:3px solid #fff;box-shadow:0 1px 4px rgba(37,99,235,.5);
+  }
+  .toggles{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:13px}
+  .toggles label{display:flex;gap:6px;align-items:center;cursor:pointer;color:var(--slate)}
+  .btns{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
+  button{
+    font:inherit;font-size:12px;font-weight:600;
+    padding:6px 10px;border-radius:7px;border:1px solid var(--line);
+    background:#fff;color:var(--slate);cursor:pointer;
+  }
+  button:hover{border-color:var(--blue);color:var(--blue)}
+  button.on{background:var(--blue);border-color:var(--blue);color:#fff}
+  .readout{
+    font-size:13px;background:var(--paper);border:1px solid var(--line);
+    border-radius:9px;padding:10px 12px;margin-bottom:8px;
+  }
+  .readout .k{color:var(--slate);font-size:12px}
+  .readout .v{font-size:17px;font-weight:700;font-variant-numeric:tabular-nums}
+  .readout .v small{font-weight:500;font-size:12px;color:var(--slate)}
+  .readout.ok{border-color:#a7f3d0;background:#ecfdf5}
+  .readout.ok .v{color:var(--green)}
+  .readout.warn{border-color:#fecaca;background:#fef2f2}
+  .readout.warn .v{color:var(--red)}
+  .formula{font-family:"Cambria Math",Georgia,serif;font-size:13px;color:var(--slate);margin-top:2px}
+  .status{font-size:12px;color:var(--slate);margin-top:2px}
+  .status.hot{color:var(--red);font-weight:600}
+  footer{padding:0 24px 34px}
+  .task{padding:16px 18px}
+  .task h3{margin:0 0 6px;font-size:15px}
+  .task p{margin:0 0 10px;font-size:13px;color:var(--slate);max-width:72ch}
+  .two{display:grid;grid-template-columns:minmax(0,420px) minmax(0,1fr);gap:20px;align-items:start}
+  .sol{font-size:13px}
+  .sol b{color:var(--ink)}
+  .sol ul{margin:6px 0 0;padding-left:18px;color:var(--slate)}
+  .note{font-size:12px;color:var(--slate-light);margin-top:14px}
+  /* Quiz */
+  .quiz{padding:18px 20px 24px;margin-top:18px}
+  .quiz>h3{margin:0 0 2px;font-size:16px}
+  .quiz>p.lead{margin:0 0 14px;font-size:13px;color:var(--slate)}
+  .q{border-top:1px solid var(--line);padding:16px 0 4px}
+  .q:first-of-type{border-top:none}
+  .qhead{display:flex;align-items:baseline;gap:8px;margin-bottom:8px}
+  .qnum{font-size:12px;font-weight:700;color:var(--slate-light);font-variant-numeric:tabular-nums}
+  .afb{
+    font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;
+    padding:2px 7px;border-radius:999px;background:var(--blue-soft);color:#1d4ed8;white-space:nowrap;
+  }
+  .afb.II{background:#fef3c7;color:#b45309}
+  .afb.III{background:#fee2e2;color:#b91c1c}
+  .qtext{font-size:14px;font-weight:600;flex:1}
+  .opts{display:grid;gap:6px;margin:0 0 8px}
+  .opt{
+    text-align:left;padding:9px 12px;border:1px solid var(--line);border-radius:9px;
+    background:#fff;font-size:13.5px;color:var(--ink);font-weight:500;cursor:pointer;
+    display:flex;gap:9px;align-items:center;
+  }
+  .opt:hover:not(:disabled){border-color:var(--blue);background:#f8fbff;color:var(--ink)}
+  .opt .k{
+    width:20px;height:20px;flex:none;border-radius:5px;background:var(--paper);
+    border:1px solid var(--line);display:grid;place-items:center;font-size:11px;font-weight:700;color:var(--slate)
+  }
+  .opt:disabled{cursor:default;opacity:1}
+  .opt.wrong{border-color:#fecaca;background:#fef2f2;color:#991b1b;text-decoration:line-through}
+  .opt.right{border-color:#a7f3d0;background:#ecfdf5;color:#065f46;font-weight:700}
+  .opt.right .k{background:#059669;color:#fff;border-color:#059669}
+  .fb{font-size:13px;padding:9px 12px;border-radius:9px;display:none}
+  .fb.show{display:block}
+  .fb.tip{background:#fffbeb;border:1px solid #fde68a;color:#92400e}
+  .fb.sol{background:#eff6ff;border:1px solid #bfdbfe;color:#1e40af}
+  .fb.good{background:#ecfdf5;border:1px solid #a7f3d0;color:#065f46}
+  .fb b{font-weight:700}
+  .score{
+    display:flex;justify-content:space-between;align-items:center;gap:12px;
+    margin-top:18px;padding-top:14px;border-top:1px solid var(--line);font-size:13px;color:var(--slate);
+  }
+  .score b{color:var(--ink);font-size:15px}
+  @media (max-width:900px){
+    main{grid-template-columns:1fr}
+    .two{grid-template-columns:1fr}
+  }
+</style>
+<meta name="theme-color" content="#1E293B">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Simulationen">
+<link rel="manifest" href="../manifest.json">
+<link rel="icon" href="../icons/icon-192.png">
+<link rel="apple-touch-icon" href="../icons/icon-180.png">
+<link rel="stylesheet" href="../app/shell.css">
+<script src="../app/shell.js" defer></script>
+</head>
+<body class="stick-stage">
+<nav class="appbar" aria-label="App"><a href="../index.html" data-back><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>Übersicht</a><span>Kletterwand</span></nav>
+
+<header>
+  <h1>Kletterwand – Überhänge ABCD und DCE</h1>
+  <p>Drehe die Wand, verschiebe die Kante <b>AB</b> in der Höhe <i>h</i>, klettere die Route hoch und lass den Überhang DCE auf den Hallenboden fallen.</p>
+</header>
+
+<main>
+  <section class="card stage">
+    <canvas id="c3d" height="560"></canvas>
+    <div class="hint">Ziehen zum Drehen · Zoom mit Regler oder Mausrad</div>
+  </section>
+
+  <aside class="card panel">
+    <h2>Ansicht</h2>
+    <div class="ctrl">
+      <label>Drehung um die x₃-Achse <span class="val" id="vAz">55°</span></label>
+      <input type="range" id="sAz" min="0" max="360" step="1" value="55">
+    </div>
+    <div class="ctrl">
+      <label>Blickhöhe <span class="val" id="vEl">18°</span></label>
+      <input type="range" id="sEl" min="-5" max="80" step="1" value="18">
+    </div>
+    <div class="ctrl">
+      <label>Zoom <span class="val" id="vZo">1,0×</span></label>
+      <input type="range" id="sZo" min="0.5" max="2.2" step="0.02" value="1">
+    </div>
+    <div class="btns">
+      <button id="bRot">Drehen ▶</button>
+      <button id="bStd">Standardansicht</button>
+      <button id="bTop">Draufsicht</button>
+      <button id="bFront">Blick entlang x₁</button>
+    </div>
+
+    <h2>Aufgabe 2.1 — Höhe h</h2>
+    <div class="ctrl">
+      <label>Höhe h der Kante AB <span class="val" id="vH">2,0 m</span></label>
+      <input type="range" id="sH" min="0" max="5" step="0.1" value="2">
+    </div>
+    <div class="readout" id="rH">
+      <div class="k">Punktprobe A(2|0|h) in F: −3x₂ + 2x₃ − 4 = 0</div>
+      <div class="v" id="rHv">0</div>
+      <div class="formula" id="rHf">−3·0 + 2·2 − 4 = 0</div>
+    </div>
+
+    <h2>Aufgabe 2.2 — Kletterroute</h2>
+    <div class="ctrl">
+      <label>Höhe der Person über dem Boden <span class="val" id="vZ">0,0 m</span></label>
+      <input type="range" id="sZ" min="0" max="8" step="0.05" value="0">
+    </div>
+    <div class="readout" id="rW">
+      <div class="k">Stumpfer Winkel zwischen den Überhängen</div>
+      <div class="v" id="rWv">160,6°</div>
+      <div class="status" id="rWs">Wechsel der Überhänge auf 5 m Höhe (Kante DC)</div>
+    </div>
+
+    <h2>Aufgabe 2.3 — Projektion</h2>
+    <div class="ctrl">
+      <label>Überhang DCE auf den Boden absenken <span class="val" id="vP">0 %</span></label>
+      <input type="range" id="sP" min="0" max="100" step="1" value="0">
+    </div>
+    <div class="readout">
+      <div class="k">Flächeninhalt des Dreiecks C₁D₁E₁</div>
+      <div class="v">10 <small>m² (3 Matten à 2 m × 3 m = 18 m²)</small></div>
+    </div>
+
+    <h2>Anzeigen</h2>
+    <div class="toggles">
+      <label><input type="checkbox" id="tF" checked> Ebene F</label>
+      <label><input type="checkbox" id="tH" checked> Ebene H</label>
+      <label><input type="checkbox" id="tM" checked> Matten</label>
+      <label><input type="checkbox" id="tL" checked> Beschriftung</label>
+      <label><input type="checkbox" id="tG" checked> Bodengitter</label>
+      <label><input type="checkbox" id="tA" checked> Winkelbogen</label>
+    </div>
+  </aside>
+</main>
+
+<footer>
+  <section class="card task">
+    <div class="two">
+      <div>
+        <canvas id="c2d" height="470"></canvas>
+      </div>
+      <div class="sol">
+        <h3>2.3 Grundriss C₁D₁E₁ mit drei Matten</h3>
+        <p>Senkrechte Projektion in die x₁-x₂-Ebene: die dritte Koordinate wird null gesetzt.</p>
+        <p><b>Fläche:</b> A = ½·|C₁D₁ × C₁E₁| = ½·|(5|0|0) × (6|4|0)| = ½·20 = <b>10</b></p>
+        <p><b>Eine mögliche Anordnung</b> (Matten dürfen überlappen und überstehen, die Dreiecksfläche muss vollständig bedeckt sein):</p>
+        <ul>
+          <li>Matte 1: x₁ von −3 bis 0, x₂ von 2 bis 4</li>
+          <li>Matte 2: x₁ von 0 bis 3, x₂ von 2 bis 4</li>
+          <li>Matte 3: x₁ von 0 bis 3, x₂ von 4 bis 6</li>
+        </ul>
+        <p class="note">Hinweis: Aus den Punkten D(2|2|5), C(−3|2|5) und E(3|6|8) ergibt sich für H die Gleichung −3x₂ + 4x₃ − 14 = 0. Für die Winkelberechnung ist nur der Normalenvektor (0|−3|4) nötig – das absolute Glied spielt keine Rolle.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="card quiz">
+    <h3>Verständnisfragen</h3>
+    <p class="lead">Acht Aufgaben, ansteigend im Anforderungsbereich. Bei einer falschen Antwort gibt es zuerst einen Tipp – probiere es damit noch einmal.</p>
+    <div id="quiz"></div>
+    <div class="score">
+      <span>Richtig im ersten Versuch: <b><span id="qScore">0</span> / 8</b></span>
+      <button id="qReset">Zurücksetzen</button>
+    </div>
+  </section>
+</footer>
+
+<script>
+/* ---------- Vektor-Helfer ---------- */
+const V=(x,y,z)=>({x,y,z});
+const sub=(a,b)=>V(a.x-b.x,a.y-b.y,a.z-b.z);
+const add=(a,b)=>V(a.x+b.x,a.y+b.y,a.z+b.z);
+const mul=(a,s)=>V(a.x*s,a.y*s,a.z*s);
+const dot=(a,b)=>a.x*b.x+a.y*b.y+a.z*b.z;
+const len=a=>Math.sqrt(dot(a,a));
+const nrm=a=>{const l=len(a)||1;return mul(a,1/l);};
+const lerp=(a,b,t)=>add(a,mul(sub(b,a),t));
+
+/* ---------- feste Geometrie ---------- */
+const C=V(-3,2,5), D=V(2,2,5), E=V(3,6,8);
+const C1=V(-3,2,0), D1=V(2,2,0), E1=V(3,6,0);
+const MATS=[[-3,2,0,4],[0,2,3,4],[0,4,3,6]]; // x1a,x2a,x1b,x2b
+
+/* ---------- Zustand ---------- */
+const st={az:55*Math.PI/180, el:18*Math.PI/180, zoom:1, h:2, z:0, proj:0, spin:false,
+          F:true, H:true, M:true, L:true, G:true, A:true};
+const A_=()=>V(2,0,st.h);
+const B_=()=>V(-3,0,st.h);
+
+/* Route: Boden -> A -> D -> E */
+function climber(z){
+  if(z<=2) return V(2,0,z);
+  if(z<=5){const t=(z-2)/3; return lerp(V(2,0,2),D,t);}
+  const t=(z-5)/3; return lerp(D,E,t);
+}
+const ROUTE=[V(2,0,0),V(2,0,2),D,E];
+
+/* ---------- Kamera / Projektion ---------- */
+const cv=document.getElementById('c3d'), cx=cv.getContext('2d');
+const CENTER=V(-0.2,2.4,3.2), DIST=30, FOC=1150;
+let W=900,Hh=560,FIT=1;
+function resize(){
+  const dpr=window.devicePixelRatio||1;
+  W=cv.clientWidth;
+  /* Handy hochkant: Ansicht kleiner, damit die Regler darunter im Bild bleiben */
+  Hh=matchMedia('(max-width:860px) and (orientation:portrait)').matches
+    ? Math.min(560,Math.round(document.documentElement.clientHeight*.46)) : 560;
+  FIT=Math.min(1,Hh/560,W/380);
+  cv.width=W*dpr; cv.height=Hh*dpr; cv.style.height=Hh+'px';
+  cx.setTransform(dpr,0,0,dpr,0,0);
+  draw();
+}
+function proj(p){
+  const ca=Math.cos(st.az), sa=Math.sin(st.az), ce=Math.cos(st.el), se=Math.sin(st.el);
+  const f=V(ca*ce,sa*ce,se), r=V(-sa,ca,0), u=V(-ca*se,-sa*se,ce);
+  const d=sub(p,CENTER);
+  const depth=Math.max(DIST-dot(d,f),1);
+  const s=FOC*st.zoom*FIT/depth;
+  return {x:W/2+dot(d,r)*s, y:Hh/2+18-dot(d,u)*s, d:depth};
+}
+
+/* ---------- Zeichen-Primitive (Painter's Algorithm) ---------- */
+let prims=[], labels=[];
+function poly(pts,fill,stroke,lw=1.5,dash=null){
+  const P=pts.map(proj);
+  prims.push({d:P.reduce((s,p)=>s+p.d,0)/P.length, f:()=>{
+    cx.beginPath(); P.forEach((p,i)=>i?cx.lineTo(p.x,p.y):cx.moveTo(p.x,p.y)); cx.closePath();
+    if(fill){cx.fillStyle=fill; cx.fill();}
+    if(stroke){cx.setLineDash(dash||[]); cx.lineWidth=lw; cx.strokeStyle=stroke; cx.stroke(); cx.setLineDash([]);}
+  }});
+}
+function line(a,b,stroke,lw=1.5,dash=null,bias=0){
+  const P=proj(a), Q=proj(b);
+  prims.push({d:(P.d+Q.d)/2+bias, f:()=>{
+    cx.beginPath(); cx.moveTo(P.x,P.y); cx.lineTo(Q.x,Q.y);
+    cx.setLineDash(dash||[]); cx.lineWidth=lw; cx.strokeStyle=stroke; cx.stroke(); cx.setLineDash([]);
+  }});
+}
+function path(pts,stroke,lw=2,dash=null,bias=0){
+  const P=pts.map(proj);
+  prims.push({d:P.reduce((s,p)=>s+p.d,0)/P.length+bias, f:()=>{
+    cx.beginPath(); P.forEach((p,i)=>i?cx.lineTo(p.x,p.y):cx.moveTo(p.x,p.y));
+    cx.setLineDash(dash||[]); cx.lineWidth=lw; cx.lineJoin='round'; cx.strokeStyle=stroke; cx.stroke(); cx.setLineDash([]);
+  }});
+}
+function dot3(p,color,r=4.5,bias=-0.5){
+  const P=proj(p);
+  prims.push({d:P.d+bias, f:()=>{
+    cx.beginPath(); cx.arc(P.x,P.y,r,0,7); cx.fillStyle=color; cx.fill();
+    cx.lineWidth=1.5; cx.strokeStyle='#fff'; cx.stroke();
+  }});
+}
+function label(p,txt,color='#0f172a',dx=8,dy=-8,bold=true,size=13){
+  labels.push({p:proj(p),txt,color,dx,dy,bold,size});
+}
+
+/* ---------- Aufbau der Szene ---------- */
+function build(){
+  prims=[]; labels=[];
+  const A=A_(), B=B_();
+
+  /* Bodengitter */
+  if(st.G){
+    for(let i=-5;i<=5;i++) line(V(i,-2,0),V(i,8,0),'#eef2f7',1);
+    for(let j=-2;j<=8;j++) line(V(-5,j,0),V(5,j,0),'#eef2f7',1);
+  }
+
+  /* Ebene F (Trägerebene ABCD) : x3 = (4+3·x2)/2 */
+  if(st.F){
+    const fp=(x1,x2)=>V(x1,x2,(4+3*x2)/2);
+    poly([fp(-5.5,-0.8),fp(4.5,-0.8),fp(4.5,3),fp(-5.5,3)],'rgba(100,116,139,.10)','rgba(100,116,139,.35)',1,[4,4]);
+  }
+  /* Ebene H (Trägerebene DCE) : x3 = (14+3·x2)/4 */
+  if(st.H){
+    const hp=(x1,x2)=>V(x1,x2,(14+3*x2)/4);
+    poly([hp(-5.5,1),hp(4.5,1),hp(4.5,7),hp(-5.5,7)],'rgba(37,99,235,.09)','rgba(37,99,235,.32)',1,[4,4]);
+  }
+
+  /* Achsen */
+  const ax=[[V(-6,0,0),V(6,0,0),'x₁'],[V(0,-2.5,0),V(0,8.5,0),'x₂'],[V(0,0,-0.2),V(0,0,10),'x₃']];
+  ax.forEach(([a,b,n])=>{
+    line(a,b,'#334155',1.6,null,3);
+    const P=proj(b), Q=proj(lerp(a,b,0.97));
+    prims.push({d:proj(b).d+3, f:()=>{
+      const ang=Math.atan2(P.y-Q.y,P.x-Q.x);
+      cx.beginPath(); cx.moveTo(P.x,P.y);
+      cx.lineTo(P.x-9*Math.cos(ang-0.35),P.y-9*Math.sin(ang-0.35));
+      cx.lineTo(P.x-9*Math.cos(ang+0.35),P.y-9*Math.sin(ang+0.35));
+      cx.closePath(); cx.fillStyle='#334155'; cx.fill();
+    }});
+    label(b,n,'#334155',10,-6,true,14);
+  });
+
+  /* Projektionsdreieck C1D1E1 + Matten */
+  if(st.M){
+    MATS.forEach(m=>poly([V(m[0],m[1],0.01),V(m[2],m[1],0.01),V(m[2],m[3],0.01),V(m[0],m[3],0.01)],
+      'rgba(37,99,235,.13)','rgba(37,99,235,.55)',1.2));
+  }
+  poly([C1,D1,E1],'rgba(148,163,184,.30)','#64748b',1.6,[6,4]);
+  [ [C,C1],[D,D1],[E,E1] ].forEach(([a,b])=>line(a,b,'#94a3b8',1.2,[3,4]));
+
+  /* Absinkendes Dreieck DCE */
+  const t=st.proj/100;
+  const dp=p=>V(p.x,p.y,p.z*(1-t));
+  poly([dp(D),dp(C),dp(E)],'rgba(37,99,235,.42)','#1d4ed8',2);
+
+  /* Überhang ABCD */
+  poly([A,B,C,D],'rgba(100,116,139,.55)','#334155',2);
+
+  /* Höhe h markieren */
+  line(V(2,0,0),A,'#dc2626',1.6,[5,4],-1);
+  label(V(2,0,st.h/2),'h = '+st.h.toFixed(1).replace('.',',')+' m','#dc2626',10,4,true,12);
+
+  /* Kletterroute */
+  path(ROUTE,'rgba(220,38,38,.45)',2.5,[7,5],-2);
+  const P=climber(st.z);
+  dot3(P,'#dc2626',7,-3);
+  label(P,st.z.toFixed(1).replace('.',',')+' m','#dc2626',12,-10,true,12);
+
+  /* Winkelbogen an der Kante DC */
+  if(st.A){
+    const M=lerp(D,C,0.5);
+    const w1=sub(A,D);                    // Richtung in ABCD, senkrecht zu DC
+    const w2=V(0,4,3);                    // Richtung in DCE, senkrecht zu DC
+    const e1=nrm(w1);
+    const e2=nrm(sub(w2,mul(e1,dot(w2,e1))));
+    const ang=Math.acos(Math.max(-1,Math.min(1,dot(nrm(w1),nrm(w2)))));
+    const pts=[];
+    for(let i=0;i<=40;i++){const a=ang*i/40; pts.push(add(M,mul(add(mul(e1,Math.cos(a)),mul(e2,Math.sin(a))),1.3)));}
+    path(pts,'#0ea5e9',2.5,null,-4);
+    line(M,add(M,mul(e1,1.6)),'#0ea5e9',1.2,[3,3],-4);
+    line(M,add(M,mul(e2,1.6)),'#0ea5e9',1.2,[3,3],-4);
+    const mid=add(M,mul(nrm(add(mul(e1,Math.cos(ang/2)),mul(e2,Math.sin(ang/2)))),2.1));
+    label(mid,(ang*180/Math.PI).toFixed(1).replace('.',',')+'°','#0284c7',-14,0,true,13);
+  }
+
+  /* Eckpunkte + Beschriftung */
+  [[A,'A('+fm(2)+'|0|'+fm(st.h)+')'],[B,'B(−3|0|'+fm(st.h)+')'],[C,'C(−3|2|5)'],[D,'D(2|2|5)'],[E,'E(3|6|8)']]
+    .forEach(([p,n])=>{dot3(p,'#0f172a'); if(st.L) label(p,n);});
+  [[C1,'C₁(−3|2|0)'],[D1,'D₁(2|2|0)'],[E1,'E₁(3|6|0)']]
+    .forEach(([p,n])=>{dot3(p,'#94a3b8',3.5); if(st.L) label(p,n,'#64748b',8,12,false,12);});
+}
+const fm=v=>Number(v).toFixed(v%1?1:0).replace('.',',');
+
+function draw(){
+  build();
+  cx.clearRect(0,0,W,Hh);
+  cx.fillStyle='#fff'; cx.fillRect(0,0,W,Hh);
+  prims.sort((a,b)=>b.d-a.d).forEach(p=>p.f());
+  labels.forEach(l=>{
+    cx.font=(l.bold?'700 ':'500 ')+l.size+'px "Segoe UI",system-ui,sans-serif';
+    cx.lineWidth=3.5; cx.strokeStyle='rgba(255,255,255,.9)'; cx.lineJoin='round';
+    cx.strokeText(l.txt,l.p.x+l.dx,l.p.y+l.dy);
+    cx.fillStyle=l.color; cx.fillText(l.txt,l.p.x+l.dx,l.p.y+l.dy);
+  });
+}
+
+/* ---------- Anzeige-Werte ---------- */
+function refresh(){
+  document.getElementById('vAz').textContent=Math.round(st.az*180/Math.PI)+'°';
+  document.getElementById('vEl').textContent=Math.round(st.el*180/Math.PI)+'°';
+  document.getElementById('vZo').textContent=st.zoom.toFixed(1).replace('.',',')+'×';
+  document.getElementById('vH').textContent=st.h.toFixed(1).replace('.',',')+' m';
+  document.getElementById('vZ').textContent=st.z.toFixed(1).replace('.',',')+' m';
+  document.getElementById('vP').textContent=st.proj+' %';
+
+  const res=2*st.h-4;
+  const box=document.getElementById('rH');
+  document.getElementById('rHv').textContent=(res===0?'0 ✓':fm(res));
+  document.getElementById('rHf').textContent='−3·0 + 2·'+fm(st.h)+' − 4 = '+fm(res);
+  box.className='readout '+(Math.abs(res)<1e-9?'ok':'warn');
+
+  const w1=sub(A_(),D), w2=V(0,4,3);
+  const ang=Math.acos(dot(nrm(w1),nrm(w2)))*180/Math.PI;
+  document.getElementById('rWv').textContent=ang.toFixed(1).replace('.',',')+'°';
+  const s=document.getElementById('rWs');
+  if(Math.abs(st.h-2)>1e-9){ s.textContent='Nur gültig, wenn A und B in der Ebene F liegen (h = 2).'; s.className='status hot'; }
+  else if(Math.abs(st.z-5)<0.3){ s.textContent='Genau hier: Wechsel vom Überhang ABCD auf DCE.'; s.className='status hot'; }
+  else { s.textContent='Wechsel der Überhänge auf 5 m Höhe (Kante DC).'; s.className='status'; }
+  draw();
+  draw2d();
+}
+
+/* ---------- 2D-Grundriss ---------- */
+const c2=document.getElementById('c2d'), g2=c2.getContext('2d');
+function draw2d(){
+  const dpr=window.devicePixelRatio||1, w=c2.clientWidth, h=470;
+  c2.width=w*dpr; c2.height=h*dpr; c2.style.height=h+'px';
+  g2.setTransform(dpr,0,0,dpr,0,0);
+  g2.clearRect(0,0,w,h);
+  const ox=w*0.5, oy=h-46, u=Math.min((w-70)/8.5, (h-70)/7.5);
+  const X=x=>ox+x*u, Y=y=>oy-y*u;
+
+  g2.strokeStyle='#e2e8f0'; g2.lineWidth=1;
+  for(let i=-4;i<=4;i++){g2.beginPath();g2.moveTo(X(i),Y(-0.4));g2.lineTo(X(i),Y(7));g2.stroke();}
+  for(let j=0;j<=7;j++){g2.beginPath();g2.moveTo(X(-4),Y(j));g2.lineTo(X(4),Y(j));g2.stroke();}
+
+  if(st.M){
+    MATS.forEach((m,i)=>{
+      g2.fillStyle='rgba(37,99,235,.12)'; g2.strokeStyle='#2563eb'; g2.lineWidth=2;
+      g2.fillRect(X(m[0]),Y(m[3]),(m[2]-m[0])*u,(m[3]-m[1])*u);
+      g2.strokeRect(X(m[0]),Y(m[3]),(m[2]-m[0])*u,(m[3]-m[1])*u);
+      g2.fillStyle='#2563eb'; g2.font='700 12px "Segoe UI",sans-serif';
+      g2.fillText('Matte '+(i+1),X((m[0]+m[2])/2)-24,Y((m[1]+m[3])/2)+4);
+    });
+  }
+  g2.beginPath(); g2.moveTo(X(-3),Y(2)); g2.lineTo(X(2),Y(2)); g2.lineTo(X(3),Y(6)); g2.closePath();
+  g2.fillStyle='rgba(220,38,38,.10)'; g2.fill();
+  g2.strokeStyle='#dc2626'; g2.lineWidth=2.5; g2.stroke();
+
+  g2.strokeStyle='#334155'; g2.lineWidth=1.6;
+  g2.beginPath(); g2.moveTo(X(-4),Y(0)); g2.lineTo(X(4),Y(0)); g2.stroke();
+  g2.beginPath(); g2.moveTo(X(0),Y(-0.4)); g2.lineTo(X(0),Y(7)); g2.stroke();
+  g2.fillStyle='#334155'; g2.font='600 13px "Segoe UI",sans-serif';
+  g2.fillText('x₁',X(4)+4,Y(0)+5); g2.fillText('x₂',X(0)-22,Y(7)+2);
+  g2.font='500 11px "Segoe UI",sans-serif'; g2.fillStyle='#64748b';
+  for(let i=-3;i<=3;i++) if(i) g2.fillText(String(i),X(i)-3,Y(0)+16);
+  for(let j=1;j<=6;j++) g2.fillText(String(j),X(0)-16,Y(j)+4);
+
+  [[-3,2,'C₁'],[2,2,'D₁'],[3,6,'E₁']].forEach(([a,b,n])=>{
+    g2.beginPath(); g2.arc(X(a),Y(b),4.5,0,7); g2.fillStyle='#dc2626'; g2.fill();
+    g2.strokeStyle='#fff'; g2.lineWidth=1.5; g2.stroke();
+    g2.fillStyle='#0f172a'; g2.font='700 13px "Segoe UI",sans-serif'; g2.fillText(n,X(a)+8,Y(b)-8);
+  });
+}
+
+/* ---------- Bedienung ---------- */
+const bind=(id,key,f=v=>+v)=>{
+  const el=document.getElementById(id);
+  el.addEventListener('input',()=>{st[key]=f(el.value); refresh();});
+};
+bind('sAz','az',v=>v*Math.PI/180);
+bind('sEl','el',v=>v*Math.PI/180);
+bind('sZo','zoom');
+bind('sH','h');
+bind('sZ','z');
+bind('sP','proj');
+['F','H','M','L','G','A'].forEach(k=>{
+  const el=document.getElementById('t'+k);
+  el.addEventListener('change',()=>{st[k]=el.checked; refresh();});
+});
+const setView=(a,e)=>{st.az=a*Math.PI/180; st.el=e*Math.PI/180;
+  document.getElementById('sAz').value=a; document.getElementById('sEl').value=e; refresh();};
+document.getElementById('bStd').onclick=()=>setView(55,18);
+document.getElementById('bTop').onclick=()=>setView(90,88);
+document.getElementById('bFront').onclick=()=>setView(0,4);
+const bRot=document.getElementById('bRot');
+bRot.onclick=()=>{st.spin=!st.spin; bRot.classList.toggle('on',st.spin); bRot.textContent=st.spin?'Stopp ⏸':'Drehen ▶'; if(st.spin) spin();};
+function spin(){
+  if(!st.spin) return;
+  st.az=(st.az+0.004)%(2*Math.PI);
+  document.getElementById('sAz').value=Math.round(st.az*180/Math.PI);
+  refresh(); requestAnimationFrame(spin);
+}
+
+let drag=null;
+cv.addEventListener('pointerdown',e=>{drag={x:e.clientX,y:e.clientY}; cv.setPointerCapture(e.pointerId);});
+cv.addEventListener('pointermove',e=>{
+  if(!drag) return;
+  st.az=(st.az+(e.clientX-drag.x)*0.008+2*Math.PI)%(2*Math.PI);
+  st.el=Math.max(-0.09,Math.min(1.4,st.el+(e.clientY-drag.y)*0.006));
+  drag={x:e.clientX,y:e.clientY};
+  document.getElementById('sAz').value=Math.round(st.az*180/Math.PI);
+  document.getElementById('sEl').value=Math.round(st.el*180/Math.PI);
+  refresh();
+});
+addEventListener('pointerup',()=>drag=null);
+cv.addEventListener('wheel',e=>{
+  e.preventDefault();
+  st.zoom=Math.max(0.5,Math.min(2.2,st.zoom*(e.deltaY<0?1.07:0.93)));
+  document.getElementById('sZo').value=st.zoom; refresh();
+},{passive:false});
+
+addEventListener('resize',()=>{resize(); refresh();});
+resize(); refresh();
+
+/* ---------- Verständnisfragen ---------- */
+const QUIZ=[
+{afb:'I', q:'Welcher Vektor ist ein Normalenvektor der Ebene F: −3x₂ + 2x₃ − 4 = 0?',
+ o:['(−3|2|−4)','(0|−3|2)','(0|2|−3)','(−3|0|2)'], c:1,
+ tip:'Der Normalenvektor besteht aus den Koeffizienten von x₁, x₂ und x₃ – in genau dieser Reihenfolge. Welchen Koeffizienten hat x₁ hier?',
+ sol:'In F kommt x₁ gar nicht vor, der Koeffizient ist also 0. Damit ist n = (0|−3|2). Das absolute Glied −4 gehört <b>nicht</b> zum Normalenvektor.'},
+
+{afb:'I', q:'Welche Bedingung erfüllt jeder Punkt des Hallenbodens (x₁-x₂-Ebene)?',
+ o:['x₁ = 0','x₂ = 0','x₃ = 0','x₁ = x₂'], c:2,
+ tip:'Der Boden ist die Ebene, die von der x₁- und der x₂-Achse aufgespannt wird. Welche Achse zeigt nach oben – und welchen Wert hat diese Koordinate am Boden?',
+ sol:'x₃ ist die Höhe über dem Boden. Am Boden gilt daher x₃ = 0, z. B. C₁(−3|2|<b>0</b>), D₁(2|2|<b>0</b>), E₁(3|6|<b>0</b>).'},
+
+{afb:'I', q:'Die Strecke AB liegt in der x₁-x₃-Ebene, also gilt x₂ = 0. In welcher Höhe h beginnt der Überhang ABCD?',
+ o:['h = 1,5','h = 2','h = 2,5','h = 4'], c:1,
+ tip:'Setze einen Punkt der Kante AB – z. B. A(2|0|h) – in die Ebenengleichung von F ein und löse nach h auf. Probiere es auch mit dem Schieberegler „Höhe h“ aus.',
+ sol:'Punktprobe in F: −3·0 + 2·h − 4 = 0 ⟹ 2h = 4 ⟹ <b>h = 2</b>.'},
+
+{afb:'II', q:'Warum spielt die x₁-Koordinate von A und B für die Berechnung von h keine Rolle?',
+ o:['Weil x₁ in der Gleichung von F den Koeffizienten 0 hat, F also parallel zur x₁-Achse ist','Weil A und B dieselbe x₁-Koordinate haben','Weil x₁ immer 0 ist','Weil der Betrag von x₁ kleiner als 3 ist'], c:0,
+ tip:'Schau dir noch einmal die Gleichung von F an: welche Variablen tauchen überhaupt auf? Und was bedeutet es für die Lage der Ebene, wenn eine Variable fehlt?',
+ sol:'In F: −3x₂ + 2x₃ − 4 = 0 fehlt x₁. Der Wert von x₁ ist damit frei wählbar – F verläuft parallel zur x₁-Achse. Deshalb liefert jeder Punkt mit x₂ = 0 dieselbe Höhe x₃ = 2, und die ganze Kante AB liegt waagrecht in dieser Höhe.'},
+
+{afb:'II', q:'Wie lautet die senkrechte Projektion des Punktes E(3|6|8) in die x₁-x₂-Ebene?',
+ o:['E₁(0|6|8)','E₁(3|6|0)','E₁(8|6|3)','E₁(3|0|8)'], c:1,
+ tip:'Senkrecht zum Boden bedeutet: parallel zur x₃-Achse nach unten. x₁ und x₂ bleiben dabei unverändert – nur die Höhe ändert sich.',
+ sol:'Beim senkrechten Projizieren auf den Boden wird nur die dritte Koordinate zu 0: <b>E₁(3|6|0)</b>. Ziehe den Regler „Überhang DCE absenken“ auf 100 %, dann siehst du genau das.'},
+
+{afb:'II', q:'Wie groß ist die Maßzahl des Flächeninhalts des Dreiecks C₁D₁E₁ mit C₁(−3|2|0), D₁(2|2|0), E₁(3|6|0)?',
+ o:['8','10','16','20'], c:1,
+ tip:'C₁D₁ liegt parallel zur x₁-Achse und ist 5 lang. Nimm sie als Grundseite – wie groß ist dann die zugehörige Höhe (der Abstand von E₁ zur Geraden durch C₁ und D₁)?',
+ sol:'Grundseite |C₁D₁| = 5, Höhe = 6 − 2 = 4. A = ½ · 5 · 4 = <b>10</b>. Mit dem Kreuzprodukt: ½·|(5|0|0) × (6|4|0)| = ½·20 = 10.'},
+
+{afb:'II', q:'Die Überhänge haben die Normalenvektoren n_F = (0|−3|2) und n_H = (0|−3|4). Wie groß ist der <i>stumpfe</i> Winkel zwischen den beiden Überhängen?',
+ o:['19,4°','70,6°','109,4°','160,6°'], c:3,
+ tip:'Die Formel mit den Beträgen liefert immer den spitzen Schnittwinkel: cos φ = |n_F · n_H| / (|n_F|·|n_H|) = 17/(5·√13) ⟹ φ ≈ 19,4°. Gefragt ist aber der stumpfe Winkel – wie hängen beide zusammen?',
+ sol:'cos φ = 17/(5√13) ⟹ φ ≈ 19,4°. Der stumpfe Nebenwinkel ist 180° − 19,4° = <b>160,6°</b>. Das passt zur Anschauung: die Wand knickt an der Kante DC nur leicht ab.'},
+
+{afb:'III', q:'Beide Ebenengleichungen enthalten kein x₁. Was folgt daraus für die Schnittgerade von F und H?',
+ o:['Die Schnittgerade verläuft parallel zur x₁-Achse und enthält die Kante DC','Die Schnittgerade verläuft parallel zur x₂-Achse','Die Ebenen sind parallel und schneiden sich nicht','Die Schnittgerade verläuft senkrecht zum Hallenboden'], c:0,
+ tip:'Beide Normalenvektoren haben die erste Komponente 0, stehen also senkrecht auf dem Richtungsvektor (1|0|0). Ein Vektor, der auf beiden Normalenvektoren senkrecht steht, ist Richtungsvektor der Schnittgeraden. Welche Punkte liegen in beiden Ebenen?',
+ sol:'(1|0|0) steht senkrecht auf n_F und auf n_H, ist also Richtungsvektor der Schnittgeraden: sie verläuft <b>parallel zur x₁-Achse</b>. C und D liegen in beiden Ebenen (beide haben x₂ = 2, x₃ = 5), also ist die Kante DC Teil dieser Schnittgeraden – genau die Knickkante, an der die Person auf 5 m Höhe den Überhang wechselt.'}
+];
+
+const qWrap=document.getElementById('quiz');
+const state=QUIZ.map(()=>({tries:0,done:false}));
+const KEYS=['A','B','C','D'];
+
+function renderQuiz(){
+  qWrap.innerHTML='';
+  QUIZ.forEach((Q,i)=>{
+    const d=document.createElement('div'); d.className='q';
+    d.innerHTML=`<div class="qhead"><span class="qnum">${i+1}</span><span class="afb ${Q.afb}">AFB ${Q.afb}</span><span class="qtext">${Q.q}</span></div>
+      <div class="opts" id="o${i}"></div>
+      <div class="fb" id="f${i}"></div>`;
+    qWrap.appendChild(d);
+    const box=d.querySelector('#o'+i);
+    Q.o.forEach((txt,j)=>{
+      const b=document.createElement('button');
+      b.className='opt'; b.innerHTML=`<span class="k">${KEYS[j]}</span><span>${txt}</span>`;
+      b.onclick=()=>answer(i,j,box,d.querySelector('#f'+i));
+      box.appendChild(b);
+    });
+  });
+  document.getElementById('qScore').textContent='0';
+}
+
+function answer(i,j,box,fb){
+  const Q=QUIZ[i], s=state[i];
+  if(s.done) return;
+  const btns=[...box.children];
+  if(j===Q.c){
+    btns[j].classList.add('right');
+    btns.forEach(b=>b.disabled=true);
+    s.done=true;
+    fb.className='fb good show';
+    fb.innerHTML='<b>Richtig.</b> '+Q.sol;
+    if(s.tries===0) score();
+  }else{
+    s.tries++;
+    btns[j].classList.add('wrong'); btns[j].disabled=true;
+    if(s.tries===1){
+      fb.className='fb tip show';
+      fb.innerHTML='<b>Noch nicht richtig – Tipp:</b> '+Q.tip;
+    }else{
+      btns.forEach(b=>b.disabled=true);
+      btns[Q.c].classList.add('right'); btns[Q.c].classList.remove('wrong');
+      s.done=true;
+      fb.className='fb sol show';
+      fb.innerHTML='<b>Lösung:</b> '+Q.sol;
+    }
+  }
+}
+function score(){
+  const n=state.filter((s,i)=>s.done&&s.tries===0).length;
+  document.getElementById('qScore').textContent=n;
+}
+document.getElementById('qReset').onclick=()=>{
+  state.forEach(s=>{s.tries=0;s.done=false;});
+  renderQuiz();
+};
+renderQuiz();
+</script>
+</body>
+</html>

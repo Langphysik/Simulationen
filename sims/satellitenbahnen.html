@@ -1,0 +1,589 @@
+<!doctype html><html lang="de"><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style><meta name="theme-color" content="#1E293B">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Simulationen">
+<link rel="manifest" href="../manifest.json">
+<link rel="icon" href="../icons/icon-192.png">
+<link rel="apple-touch-icon" href="../icons/icon-180.png">
+<link rel="stylesheet" href="../app/shell.css">
+<script src="../app/shell.js" defer></script>
+</head><body>
+<nav class="appbar" aria-label="App"><a href="../index.html" data-back><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>Übersicht</a><span>Satellitenbahnen</span></nav>
+<title>Satellitenbahnen</title>
+<link rel="stylesheet" href="../assets/fonts/fonts.css">
+<style>
+/* Layout: Bühne links (3D-Ansicht, Zeitleiste, Bodenspur), Bedienfeld rechts; unter 920 px untereinander. Durchgehend dunkel wie ein Planetarium. */
+:root{
+  --bg:#070b14; --panel:#0d1424; --panel2:#121c31; --line:#223250; --fg:#e4ebf8; --muted:#92a1bd; --accent:#6aa9ff;
+  --geo:#ffb84d; --gps:#58d68d; --wetter:#b88cff; --iss:#5cd6ff; --starlink:#ff6b6b; --own:#f2f5fb;
+  --f-head:'Barlow Semi Condensed',system-ui,sans-serif;
+  --f-body:'IBM Plex Sans',system-ui,sans-serif;
+  --f-mono:'IBM Plex Mono',ui-monospace,monospace;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--fg);font:14px/1.5 var(--f-body);padding-inline:16px;padding-block:20px 48px}
+.wrap{max-width:1320px;margin-inline:auto}
+h1{font:600 34px/1.1 var(--f-head);letter-spacing:.01em;margin:0 0 6px;text-wrap:balance}
+.lead{margin:0;color:var(--muted);max-width:68ch}
+h2{font:600 14px/1.2 var(--f-head);letter-spacing:.09em;text-transform:uppercase;color:var(--muted);margin:0 0 12px}
+h3{font:600 18px/1.2 var(--f-head);margin:0}
+.layout{display:grid;grid-template-columns:minmax(0,1fr) 370px;gap:18px;margin-top:18px;align-items:start}
+@media (max-width:920px){.layout{grid-template-columns:minmax(0,1fr)}}
+.stage,.panel{display:flex;flex-direction:column;gap:14px;min-width:0}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px}
+.view{position:relative;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:#04070f}
+canvas{display:block;width:100%;height:auto}
+#view{aspect-ratio:1/1;max-height:80vh;min-height:300px;cursor:grab;touch-action:pan-y;outline-offset:-3px}
+#view:active{cursor:grabbing}
+#map{aspect-ratio:2/1;border-radius:6px}
+.hud,.note{position:absolute;left:12px;font:12px/1.4 var(--f-mono);color:var(--muted);pointer-events:none}
+.hud{top:10px}
+.note{bottom:10px;right:12px;font-family:var(--f-body)}
+.hud b{color:var(--fg);font-weight:500}
+.bar{display:flex;flex-wrap:wrap;gap:10px 14px;align-items:flex-end;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px 14px}
+.grow{flex:1 1 220px;min-width:0}
+.btn{font:500 13px var(--f-body);background:var(--panel2);color:var(--fg);border:1px solid var(--line);border-radius:8px;padding:7px 12px;cursor:pointer}
+.btn:hover{border-color:var(--accent)}
+.btn:focus-visible,input:focus-visible,#view:focus-visible{outline:2px solid var(--accent)}
+.row{display:flex;flex-wrap:wrap;gap:8px}
+.sub{margin:-4px 0 10px;color:var(--muted);font-size:13px}
+.ctl{display:grid;gap:3px;margin-bottom:12px}
+.ctl:last-child{margin-bottom:0}
+.ctl label{display:flex;justify-content:space-between;gap:10px;color:var(--muted);font-size:13px}
+.ctl b{font:500 12.5px var(--f-mono);color:var(--fg);text-align:right}
+input[type=range]{width:100%;margin:0;accent-color:var(--accent)}
+.chk{display:flex;gap:8px;align-items:center;margin:6px 0;color:var(--fg)}
+.chk input{accent-color:var(--accent)}
+ul.sats{list-style:none;margin:0;padding:0;display:grid;gap:6px}
+.sat{display:grid;grid-template-columns:auto minmax(0,1fr);gap:10px;align-items:center;padding:8px 10px;border-radius:8px;border:1px solid transparent;cursor:pointer}
+.sat:hover{background:var(--panel2)}
+.sat.on{background:var(--panel2);border-color:var(--c)}
+.sat input{accent-color:var(--c);width:16px;height:16px;margin:0}
+.nm{font-weight:500}
+.nm i{display:inline-block;width:9px;height:9px;border-radius:50%;background:var(--c);margin-right:8px}
+.mt{font:12px var(--f-mono);color:var(--muted)}
+.ih{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;margin-bottom:8px}
+.ih i{width:12px;height:12px;border-radius:50%}
+.tag{font:12px var(--f-mono);color:var(--muted);border:1px solid var(--line);border-radius:5px;padding:1px 6px}
+#info p{margin:0 0 4px;color:#c6d2e8}
+dl.data{display:grid;grid-template-columns:auto minmax(0,1fr);gap:3px 14px;margin:10px 0 0}
+dl.data dt{color:var(--muted)}
+dl.data dd{margin:0;font:500 13px var(--f-mono);text-align:right}
+.formel{margin:10px 0 0;font:12px var(--f-mono);color:var(--muted)}
+#ownTxt{margin:10px 0 0;font:12.5px/1.5 var(--f-mono);color:var(--muted)}
+#ownTxt strong{color:var(--own);font-weight:500}
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>Satellitenbahnen</h1>
+    <p class="lead">Geostationär, GPS, Wetterbeobachtung, ISS und Starlink im Größenvergleich. Drehe die Erde mit Finger oder Maus, stelle Ebene und Zeitraffer mit den Reglern ein und tippe einen Satelliten für seine Daten an.</p>
+  </header>
+
+  <div class="layout">
+    <div class="stage">
+      <section class="view" aria-label="3D-Ansicht der Satellitenbahnen">
+        <canvas id="view" tabindex="0" aria-label="3D-Ansicht. Pfeiltasten drehen die Ansicht."></canvas>
+        <div class="hud">Simulationszeit <b id="clock">0 d 00 h 00 min</b></div>
+        <div class="note" id="note"></div>
+      </section>
+
+      <div class="bar">
+        <div class="row">
+          <button class="btn" id="play" type="button">Pause</button>
+          <button class="btn" id="reset" type="button">Zurück auf Null</button>
+        </div>
+        <div class="ctl grow">
+          <label for="speed">Zeitraffer <b id="speedv"></b></label>
+          <input id="speed" type="range" min="0" max="12" step="1" value="6">
+        </div>
+      </div>
+
+      <section class="card">
+        <h2>Bodenspur</h2>
+        <p class="sub">Die Linie zeigt den Weg über der Erdoberfläche (bis zu zwei Umläufe zurück), der Punkt die aktuelle Position. Die Erde dreht sich unter der Bahn weg.</p>
+        <canvas id="map" aria-label="Weltkarte mit den Bodenspuren der Satelliten"></canvas>
+      </section>
+    </div>
+
+    <aside class="panel">
+      <section class="card">
+        <h2>Satelliten</h2>
+        <ul class="sats" id="list"></ul>
+      </section>
+
+      <section class="card" id="info" aria-live="polite"></section>
+
+      <section class="card">
+        <h2>Ansicht</h2>
+        <div class="row" style="margin-bottom:12px">
+          <button class="btn" type="button" data-az="0" data-el="90">Von oben (Pol)</button>
+          <button class="btn" type="button" data-az="0" data-el="0">Von der Seite (Äquator)</button>
+          <button class="btn" type="button" data-az="20" data-el="28">Schräg</button>
+        </div>
+        <div class="ctl"><label for="az">Drehung um die Erdachse <b id="azv"></b></label><input id="az" type="range" min="0" max="360" step="1" value="20"></div>
+        <div class="ctl"><label for="el">Kippung (Blick auf die Ebene) <b id="elv"></b></label><input id="el" type="range" min="-90" max="90" step="1" value="28"></div>
+        <div class="ctl"><label for="zoom">Zoom <b id="zoomv"></b></label><input id="zoom" type="range" min="50" max="500" step="5" value="100"></div>
+        <div class="ctl"><label for="scale">Maßstab Erde - Satellitenhöhe verändern <b id="scalev"></b></label><input id="scale" type="range" min="0" max="100" step="1" value="0"></div>
+        <div class="ctl"><label for="size">Symbolgröße <b id="sizev"></b></label><input id="size" type="range" min="50" max="250" step="5" value="100"></div>
+        <label class="chk"><input type="checkbox" id="orbits" checked> Bahnen zeigen</label>
+        <label class="chk"><input type="checkbox" id="foot" checked> Sichtbereich auf der Erde</label>
+        <label class="chk"><input type="checkbox" id="labels" checked> Beschriftung</label>
+        <label class="chk"><input type="checkbox" id="auto"> Ansicht automatisch drehen</label>
+      </section>
+
+      <section class="card">
+        <h2>Starlink-Konstellation</h2>
+        <div class="ctl"><label for="planes">Bahnebenen <b id="planesv"></b></label><input id="planes" type="range" min="0" max="72" step="1" value="18"></div>
+        <p class="sub" style="margin:0">Je Ebene 22 Satelliten, gleichmäßig um die Erdachse verteilt. Das echte System nutzt 72 Ebenen.</p>
+      </section>
+
+      <section class="card">
+        <h2>Eigener Satellit</h2>
+        <p class="sub">Schalte ihn in der Liste ein und verändere Höhe und Neigung.</p>
+        <div class="ctl"><label for="ownAlt">Höhe über dem Äquator <b id="ownAltv"></b></label><input id="ownAlt" type="range" min="200" max="60000" step="50" value="3000"></div>
+        <div class="ctl"><label for="ownInc">Bahnneigung <b id="ownIncv"></b></label><input id="ownInc" type="range" min="0" max="110" step="1" value="30"></div>
+        <div class="row">
+          <button class="btn" type="button" data-alt="420">ISS-Höhe</button>
+          <button class="btn" type="button" data-alt="20180">GPS-Höhe</button>
+          <button class="btn" type="button" data-alt="35786" data-inc="0">Geostationär</button>
+        </div>
+        <p id="ownTxt"></p>
+      </section>
+    </aside>
+  </div>
+</div>
+<script>
+(() => {
+'use strict';
+const TAU=Math.PI*2, D2R=Math.PI/180;
+const RE=6378.137, GM=398600.4418, SID=86164.0905, WE=TAU/SID;
+const $=id=>document.getElementById(id);
+const nf=(v,d=0)=>v.toLocaleString('de-DE',{minimumFractionDigits:d,maximumFractionDigits:d});
+const clamp=(v,a,b)=>Math.min(b,Math.max(a,v));
+const hc={};
+const hexA=(h,a)=>hc[h+a]||(hc[h+a]=`rgba(${parseInt(h.slice(1,3),16)},${parseInt(h.slice(3,5),16)},${parseInt(h.slice(5,7),16)},${a})`);
+
+/* ---------- Satelliten ---------- */
+const gpsCopies=[];
+for(let p=0;p<6;p++)for(let k=0;k<4;k++)gpsCopies.push({raan:p*60,th0:k*90+p*15});
+const DEFS=[
+ {id:'geo',name:'Geostationärer Satellit',label:'GEO',tag:'GEO · 35.786 km',color:'#ffb84d',alt:35786,inc:0,isz:4.2,
+  text:'Bahnebene gleich Äquatorebene, Umlaufzeit gleich Erdrotation (ein Sterntag): Der Satellit steht scheinbar still über einem Punkt am Äquator. Typisch sind Wettersatelliten wie Meteosat sowie Fernseh- und Kommunikationssatelliten. Er sieht große Teile der Erde, aber nicht die Polregionen.',
+  copies:[{raan:0,th0:10}]},
+ {id:'gps',name:'GPS-Satellit',label:'GPS',tag:'MEO',color:'#58d68d',alt:20180,inc:55,isz:2.7,
+  text:'Navigationssatelliten in mittlerer Höhe: 6 Bahnebenen mit je 4 Satelliten, 55° geneigt. Zwei Umläufe pro Sterntag. Von jedem Ort sind mindestens vier gleichzeitig sichtbar, das Empfangsgerät errechnet die Position aus den Signallaufzeiten.',
+  copies:gpsCopies},
+ {id:'wetter',name:'Wetterbeobachtungssatellit',label:'Wetter (polar)',tag:'LEO · polar',color:'#b88cff',alt:817,inc:98.7,isz:3.8,
+  text:'Polarumlaufender Satellit wie Metop: Die Bahn führt fast über die Pole, die Erde dreht sich darunter weg. So tastet er in etwa einem Tag die ganze Erdoberfläche ab, immer zur gleichen Ortszeit (sonnensynchron). Er liefert hochaufgelöste Bilder und Temperaturprofile.',
+  copies:[{raan:100,th0:60}]},
+ {id:'iss',name:'ISS',label:'ISS',tag:'LEO',color:'#5cd6ff',alt:420,inc:51.64,isz:3.6,
+  text:'Internationale Raumstation. Die Gewichtskraft ist dort nur etwa 12 % kleiner als am Boden. Schwerelos sind die Astronauten, weil die Station im freien Fall um die Erde fällt. Sie überfliegt alle Breiten zwischen 51,6° Nord und 51,6° Süd.',
+  copies:[{raan:40,th0:0}]},
+ {id:'starlink',name:'Starlink',label:'Starlink',tag:'LEO · Konstellation',color:'#ff6b6b',alt:550,inc:53,isz:1,
+  text:'Satellitennetz für Internet in niedriger Bahn: Viele kleine Satelliten verteilen sich auf zahlreiche Bahnebenen. Die niedrige Höhe bedeutet kurze Signalwege und wenig Verzögerung, aber jeder Satellit deckt nur ein kleines Gebiet ab.',
+  copies:[]},
+ {id:'own',name:'Eigener Satellit',label:'Eigener',tag:'Experiment',color:'#f2f5fb',alt:3000,inc:30,isz:3.8,
+  text:'Stelle Höhe und Neigung selbst ein. Je höher die Bahn, desto langsamer fliegt der Satellit (v ~ 1/√r) und desto länger dauert ein Umlauf (T ~ r^(3/2), drittes Keplersches Gesetz).',
+  copies:[{raan:0,th0:0}]}
+];
+const DEF={};DEFS.forEach(d=>DEF[d.id]=d);
+
+function prepOrbits(d){
+  const raans=[...new Set(d.copies.map(c=>c.raan))];
+  d.orb=raans.map(ra=>{
+    const cr=Math.cos(ra*D2R),sr=Math.sin(ra*D2R),a=new Float32Array(363);
+    for(let i=0;i<=120;i++){const th=i/120*TAU,ct=Math.cos(th),st=Math.sin(th),yo=st*d.ci;
+      a[3*i]=ct*cr-yo*sr;a[3*i+1]=ct*sr+yo*cr;a[3*i+2]=st*d.si;}
+    return a;});
+}
+function prep(d){
+  const r=RE+d.alt;
+  d.n=Math.sqrt(GM/(r*r*r));d.ci=Math.cos(d.inc*D2R);d.si=Math.sin(d.inc*D2R);
+  for(const c of d.copies){c.th=c.th0*D2R;c.cr=Math.cos(c.raan*D2R);c.sr=Math.sin(c.raan*D2R);}
+  prepOrbits(d);
+}
+function buildStarlink(){
+  const d=DEF.starlink,P=S.planes,N=22;d.copies=[];
+  for(let p=0;p<P;p++)for(let j=0;j<N;j++)d.copies.push({raan:p*360/P,th0:j*360/N+p*360/N*.37});
+  prep(d);
+}
+/* Einheitsvektor (Inertialsystem, z = Erdachse) eines Satelliten zur Zeit t */
+function unit(d,c,t,o){
+  const th=c.th+d.n*t,ct=Math.cos(th),st=Math.sin(th),yo=st*d.ci;
+  o[0]=ct*c.cr-yo*c.sr;o[1]=ct*c.sr+yo*c.cr;o[2]=st*d.si;return o;
+}
+function dataOf(d){
+  const r=RE+d.alt,v=Math.sqrt(GM/r),T=TAU*Math.sqrt(r*r*r/GM),lam=Math.acos(RE/r);
+  return{r,v,T,lam,g:GM/(r*r)*1000,cov:(1-Math.cos(lam))/2*100,perDay:86400/T};
+}
+
+/* ---------- Zustand ---------- */
+const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
+const SPEEDS=[1,10,30,60,120,300,600,1200,3600,7200,18000,43200,86400];
+const S={t:0,play:!reduced,speedIdx:6,az:20,el:28,vaz:20,vel:28,k:.48,zoom:1,size:1,planes:18,
+  show:{geo:1,gps:1,wetter:1,iss:1,starlink:1,own:0},sel:'iss',orbits:1,foot:1,labels:1,auto:0};
+DEFS.forEach(prep);buildStarlink();
+const rdOf=alt=>1+Math.pow(alt/RE,S.k);
+
+/* ---------- Kontinente (grob, Länge/Breite) ---------- */
+const LAND=[
+ [[-168,66],[-162,70],[-141,70],[-128,70],[-115,68],[-95,72],[-85,70],[-82,63],[-93,58],[-85,55],[-79,52],[-78,62],[-72,62],[-64,60],[-61,56],[-56,52],[-60,48],[-66,45],[-70,43],[-74,40],[-76,35],[-81,31],[-80,26],[-82,27],[-84,30],[-90,30],[-94,29],[-97,26],[-97,22],[-95,19],[-91,19],[-90,21],[-87,21],[-88,16],[-84,15],[-83,10],[-80,9],[-77,8],[-79,9],[-85,11],[-92,14],[-96,16],[-105,20],[-109,25],[-114,31],[-117,33],[-121,35],[-124,40],[-124,46],[-128,51],[-135,57],[-140,60],[-148,61],[-152,59],[-158,57],[-164,55],[-158,59],[-162,63],[-166,62],[-165,65]],
+ [[-77,8],[-72,12],[-63,11],[-60,8],[-52,5],[-50,0],[-44,-2],[-35,-5],[-35,-9],[-39,-15],[-41,-22],[-48,-26],[-53,-34],[-58,-35],[-57,-38],[-62,-39],[-65,-42],[-64,-47],[-68,-51],[-69,-55],[-72,-53],[-75,-48],[-73,-40],[-71,-30],[-70,-18],[-76,-14],[-81,-6],[-80,-1],[-78,3]],
+ [[-17,21],[-13,28],[-9,32],[-6,36],[10,37],[11,33],[20,31],[32,31],[33,28],[35,24],[37,19],[39,15],[43,12],[51,12],[48,5],[41,-2],[40,-10],[40,-16],[35,-24],[32,-29],[27,-34],[20,-35],[17,-30],[12,-17],[13,-9],[9,-1],[9,4],[4,6],[-4,5],[-8,4],[-13,8],[-17,14]],
+ [[44,-25],[47,-25],[50,-15],[49,-12],[44,-17]],
+ [[-9,37],[-9,43],[-2,43.5],[-1,46],[-4,48],[2,51],[5,53],[8,54],[9,57],[10,54.5],[14,54],[19,54.5],[21,57],[24,57.5],[24,59.5],[30,60],[34,66],[41,67],[44,68],[54,68],[60,69],[68,69],[72,73],[80,73],[88,76],[100,77],[112,74],[130,72],[140,72],[150,71],[160,70],[170,70],[180,68],[178,65],[170,60],[163,59],[160,54],[156,51],[155,57],[150,59],[142,59],[137,54],[141,52],[140,48],[135,43],[130,42],[129,35],[126,35],[126,38],[122,40],[121,37],[119,35],[121,31],[122,30],[120,26],[116,23],[110,21],[106,18],[109,12],[105,9],[103,10],[100,13],[100,8],[103,2],[101,3],[98,8],[98,16],[94,16],[92,21],[89,22],[87,21],[80,15],[78,9],[77,8],[73,16],[72,21],[68,23],[66,25],[57,25],[56,27],[52,28],[48,30],[50,26],[52,24],[56,26],[59,22],[55,17],[52,16],[45,13],[43,13],[39,21],[35,28],[34,31],[35,36],[30,36],[27,37],[26,40],[23,40],[24,38],[22,37],[21,40],[19,42],[13,45.5],[12,44],[16,41],[18,40],[16,38],[15.5,40],[12,42],[9,44],[6,43],[3,43],[0,40],[-2,37]],
+ [[5,58],[8,63],[14,67],[20,70],[28,71],[30,70],[28,66],[25,65],[22,65],[17,61],[17,57],[13,55.5],[11,59],[8,58]],
+ [[-5,50],[1,51],[2,53],[-2,56],[-3,58.5],[-6,58],[-5,55],[-3,54],[-5,52]],
+ [[130,32],[132,34],[135,35],[140,36],[142,40],[140,41.5],[140,38],[136,36],[132,35],[130,33]],
+ [[95,5],[98,4],[104,-2],[106,-6],[102,-4],[96,2]],
+ [[109,1],[113,3],[117,7],[119,5],[116,-4],[111,-3]],
+ [[131,-1],[141,-3],[147,-6],[150,-10],[142,-9],[138,-8],[134,-4]],
+ [[114,-22],[122,-18],[130,-12],[137,-12],[142,-11],[146,-19],[153,-26],[150,-37],[141,-38],[135,-34],[129,-32],[115,-34]],
+ [[-55,60],[-45,60],[-20,70],[-20,80],[-60,82],[-72,78],[-55,68]],
+ [[-180,-71],[-160,-78],[-130,-74],[-100,-74],[-75,-72],[-62,-65],[-60,-72],[-45,-78],[-20,-72],[0,-70],[30,-68],[60,-67],[90,-66],[120,-66],[150,-68],[170,-72],[180,-71],[180,-90],[-180,-90]]
+];
+const LANDD=LAND.map(poly=>{const out=[];
+  for(let i=0;i<poly.length;i++){const a=poly[i],b=poly[(i+1)%poly.length],k=Math.max(1,Math.ceil(Math.hypot(b[0]-a[0],b[1]-a[1])/4));
+    for(let j=0;j<k;j++)out.push([a[1]+(b[1]-a[1])*j/k,a[0]+(b[0]-a[0])*j/k]);}
+  return out;});
+
+/* ---------- Leinwände, Kamera ---------- */
+const cv=$('view'),cx3=cv.getContext('2d'),mv=$('map'),cxm=mv.getContext('2d');
+let W=0,H=0,MW=0,MH=0,dpr=1,Sc=0,phi=0,hits=[];
+function fit(){
+  dpr=Math.min(window.devicePixelRatio||1,2);
+  let b=cv.getBoundingClientRect();W=b.width;H=b.height;cv.width=Math.round(W*dpr);cv.height=Math.round(H*dpr);
+  b=mv.getBoundingClientRect();MW=b.width;MH=b.height;mv.width=Math.round(MW*dpr);mv.height=Math.round(MH*dpr);
+}
+const stars=(()=>{let s=7;const r=()=>(s=(s*16807)%2147483647)/2147483647;
+  return Array.from({length:200},()=>({x:r(),y:r(),a:.2+r()*.6,s:r()<.1?1.6:1}));})();
+/* Blickrichtung: Drehung um die Erdachse (A), Kippung gegen die Äquatorebene (E). E=90°: Blick von oben auf den Nordpol. */
+let cA=1,sA=0,cE=1,sE=0;
+function setCam(){const a=S.vaz*D2R,e=S.vel*D2R;cA=Math.cos(a);sA=Math.sin(a);cE=Math.cos(e);sE=Math.sin(e);}
+function P(u,rd){const x=u[0]*rd,y=u[1]*rd,z=u[2]*rd,x1=x*cA-y*sA,y1=x*sA+y*cA;return[x1,y1*sE+z*cE,-y1*cE+z*sE];}
+const sph=(la,lo)=>{la*=D2R;lo=lo*D2R+phi;const k=Math.cos(la);return[k*Math.cos(lo),k*Math.sin(lo),Math.sin(la)];};
+const occl=p=>p[2]<0&&p[0]*p[0]+p[1]*p[1]<1;
+
+function collect(){
+  const items=[],o=[0,0,0];
+  for(const d of DEFS){if(!S.show[d.id])continue;const rd=rdOf(d.alt);
+    d.copies.forEach((cp,i)=>{unit(d,cp,S.t,o);const p=P(o,rd);items.push({d,i,x:p[0],y:p[1],D:p[2],u:[o[0],o[1],o[2]]});});}
+  return items;
+}
+
+/* ---------- Zeichnen: Erde ---------- */
+function earth(c,cx,cy,R){
+  let g=c.createRadialGradient(cx,cy,R*.96,cx,cy,R*1.14);
+  g.addColorStop(0,'rgba(120,185,255,.5)');g.addColorStop(1,'rgba(120,185,255,0)');
+  c.fillStyle=g;c.beginPath();c.arc(cx,cy,R*1.14,0,TAU);c.fill();
+  g=c.createRadialGradient(cx-R*.4,cy-R*.45,R*.05,cx,cy,R);
+  g.addColorStop(0,'#2f78bf');g.addColorStop(1,'#0b2850');
+  c.fillStyle=g;c.beginPath();c.arc(cx,cy,R,0,TAU);c.fill();
+  c.save();c.beginPath();c.arc(cx,cy,R,0,TAU);c.clip();
+  c.fillStyle='#3f9166';
+  for(const poly of LANDD){
+    const pts=poly.map(([la,lo])=>P(sph(la,lo),1));
+    if(pts.every(p=>p[2]<0))continue;
+    c.beginPath();
+    pts.forEach((p,i)=>{let x=p[0],y=p[1];if(p[2]<0){const l=Math.hypot(x,y)||1;x/=l;y/=l;}
+      i?c.lineTo(cx+x*R,cy-y*R):c.moveTo(cx+x*R,cy-y*R);});
+    c.closePath();c.fill();
+  }
+  const seg=a=>{let pen=false;for(const p of a){if(p[2]>=0){pen?c.lineTo(cx+p[0]*R,cy-p[1]*R):c.moveTo(cx+p[0]*R,cy-p[1]*R);pen=true;}else pen=false;}};
+  c.lineWidth=.8;c.strokeStyle='rgba(255,255,255,.16)';c.beginPath();
+  for(let lo=0;lo<360;lo+=30){const a=[];for(let la=-90;la<=90;la+=3)a.push(P(sph(la,lo),1));seg(a);}
+  for(let la=-60;la<=60;la+=30){if(!la)continue;const a=[];for(let lo=0;lo<=360;lo+=3)a.push(P(sph(la,lo),1));seg(a);}
+  c.stroke();
+  c.lineWidth=1.3;c.strokeStyle='rgba(255,255,255,.42)';c.beginPath();
+  {const a=[];for(let lo=0;lo<=360;lo+=3)a.push(P(sph(0,lo),1));seg(a);}c.stroke();
+  g=c.createRadialGradient(cx,cy,R*.7,cx,cy,R);
+  g.addColorStop(0,'rgba(3,10,28,0)');g.addColorStop(1,'rgba(3,10,28,.55)');
+  c.fillStyle=g;c.beginPath();c.arc(cx,cy,R,0,TAU);c.fill();
+  c.restore();
+}
+function axis(c,cx,cy,R){
+  c.save();c.setLineDash([4,4]);c.lineWidth=1;
+  for(const s of [1,-1]){
+    const a=P([0,0,s],1),b=P([0,0,s],1.32),hid=occl(b);
+    c.strokeStyle=hid?'rgba(255,255,255,.12)':'rgba(255,255,255,.4)';
+    c.beginPath();c.moveTo(cx+a[0]*R,cy-a[1]*R);c.lineTo(cx+b[0]*R,cy-b[1]*R);c.stroke();
+    if(s===1&&!hid){c.setLineDash([]);c.fillStyle='rgba(255,255,255,.7)';c.font='500 11px "IBM Plex Sans",system-ui,sans-serif';c.fillText('N',cx+b[0]*R+4,cy-b[1]*R-3);c.setLineDash([4,4]);}
+  }
+  c.restore();
+}
+/* Sichtbereich: Kreis auf der Erdoberfläche, aus dem der Satellit über dem Horizont steht */
+function ring(u,lam){
+  let a=Math.abs(u[2])<.9?[u[1],-u[0],0]:[0,u[2],-u[1]];
+  const l=Math.hypot(a[0],a[1],a[2]);a=[a[0]/l,a[1]/l,a[2]/l];
+  const b=[u[1]*a[2]-u[2]*a[1],u[2]*a[0]-u[0]*a[2],u[0]*a[1]-u[1]*a[0]],cl=Math.cos(lam),sl=Math.sin(lam),pts=[];
+  for(let i=0;i<=72;i++){const ps=i/72*TAU,cp=Math.cos(ps),sp=Math.sin(ps);
+    pts.push(P([u[0]*cl+sl*(a[0]*cp+b[0]*sp),u[1]*cl+sl*(a[1]*cp+b[1]*sp),u[2]*cl+sl*(a[2]*cp+b[2]*sp)],1.004));}
+  return pts;
+}
+function footprints(c,cx,cy,R,items){
+  for(const it of items){
+    const d=it.d;
+    if(it.i!==0&&!(d.id==='geo'))continue;
+    if((d.id==='gps'||d.id==='starlink')&&S.sel!==d.id)continue;
+    const pts=ring(it.u,dataOf(d).lam);
+    if(pts.every(p=>p[2]<0))continue;
+    c.beginPath();
+    pts.forEach((p,i)=>{let x=p[0],y=p[1];if(p[2]<0){const l=Math.hypot(x,y)||1;x/=l;y/=l;}i?c.lineTo(cx+x*R,cy-y*R):c.moveTo(cx+x*R,cy-y*R);});
+    c.closePath();c.fillStyle=hexA(d.color,.15);c.fill();
+    c.beginPath();let pen=false;
+    for(const p of pts){if(p[2]>=0){pen?c.lineTo(cx+p[0]*R,cy-p[1]*R):c.moveTo(cx+p[0]*R,cy-p[1]*R);pen=true;}else pen=false;}
+    c.lineWidth=1.6;c.strokeStyle=hexA(d.color,.95);c.stroke();
+    if(S.sel===d.id&&!(it.D<0&&it.x*it.x+it.y*it.y<1)){
+      const rd=rdOf(d.alt);c.lineWidth=.8;c.strokeStyle=hexA(d.color,.4);c.beginPath();
+      for(let i=0;i<72;i+=9){const p=pts[i];if(p[2]<0)continue;c.moveTo(cx+it.x*rd*0+it.x*R,cy-it.y*R);c.lineTo(cx+p[0]*R,cy-p[1]*R);}
+      c.stroke();
+    }
+  }
+}
+/* ---------- Zeichnen: Bahnen und Satelliten ---------- */
+function drawOrbits(c,cx,cy,R){
+  for(const d of DEFS){
+    if(!S.show[d.id]||!d.orb||!d.copies.length)continue;
+    const rd=rdOf(d.alt),sel=S.sel===d.id,many=d.orb.length>6,vis=new Path2D(),hid=new Path2D();
+    for(const a of d.orb){
+      let px=0,py=0,po=false;
+      for(let i=0;i<=120;i++){
+        const x=a[3*i]*rd,y=a[3*i+1]*rd,z=a[3*i+2]*rd,x1=x*cA-y*sA,y1=x*sA+y*cA,Yp=y1*sE+z*cE,D=-y1*cE+z*sE;
+        const oc=D<0&&x1*x1+Yp*Yp<1,sx=cx+x1*R,sy=cy-Yp*R;
+        if(i){const q=(oc&&po)?hid:vis;q.moveTo(px,py);q.lineTo(sx,sy);}
+        px=sx;py=sy;po=oc;
+      }
+    }
+    c.lineWidth=sel?2.2:(many?.8:1.4);
+    c.strokeStyle=hexA(d.color,many?.2:(sel?1:.7));c.stroke(vis);
+    c.strokeStyle=hexA(d.color,many?.05:.22);c.stroke(hid);
+  }
+}
+function icon(c,kind,x,y,s,col,al){
+  c.fillStyle=col;c.strokeStyle=col;c.globalAlpha=al;
+  const r=(a,b,w,h,f)=>{c.globalAlpha=al*(f||1);c.fillRect(x+a*s,y+b*s,w*s,h*s);};
+  switch(kind){
+    case'geo':r(-.5,-.5,1,1);r(-2.2,-.32,1.5,.64,.7);r(.7,-.32,1.5,.64,.7);c.globalAlpha=al;c.beginPath();c.arc(x,y-.85*s,.32*s,0,TAU);c.fill();break;
+    case'gps':r(-.4,-.5,.8,1);r(-1.9,-.35,1.4,.7,.7);r(.5,-.35,1.4,.7,.7);break;
+    case'wetter':r(-.35,-.8,.7,1.6);r(.5,-.2,2,.4,.7);c.globalAlpha=al;c.beginPath();c.arc(x-.7*s,y,.3*s,0,TAU);c.fill();break;
+    case'iss':r(-2.5,-.1,5,.2);r(-.6,-.35,1.2,.7);r(-2.5,-.95,.85,.8,.7);r(-2.5,.15,.85,.8,.7);r(1.65,-.95,.85,.8,.7);r(1.65,.15,.85,.8,.7);break;
+    case'starlink':r(-1,-.2,2,.4,.8);r(-.2,-.35,.4,.7);break;
+    default:c.globalAlpha=al;c.beginPath();c.arc(x,y,.7*s,0,TAU);c.fill();
+  }
+  c.globalAlpha=1;
+}
+function sats(c,cx,cy,R,items){
+  hits=[];
+  items.sort((a,b)=>a.D-b.D);
+  c.font='500 12px "IBM Plex Sans",system-ui,sans-serif';c.textBaseline='middle';
+  for(const it of items){
+    const d=it.d,x=cx+it.x*R,y=cy-it.y*R,hid=it.D<0&&it.x*it.x+it.y*it.y<1,al=hid?.28:1,sel=S.sel===d.id;
+    hits.push({id:d.id,x,y,hid});
+    if(d.id==='starlink'){c.globalAlpha=hid?.2:(sel?1:.85);c.fillStyle=d.color;const z=1.1*Math.max(1,S.size*1.1);c.fillRect(x-z,y-z,z*2,z*2);c.globalAlpha=1;}
+    else icon(c,d.id==='own'?'own':d.id,x,y,d.isz*S.size,d.color,al);
+    if(sel&&(d.id!=='starlink'||it.i===0)){c.strokeStyle=hexA(d.color,hid?.35:.9);c.lineWidth=1.2;c.setLineDash([3,3]);c.beginPath();c.arc(x,y,13*Math.max(1,S.size*.8),0,TAU);c.stroke();c.setLineDash([]);}
+    if(S.labels&&it.i===0&&!hid){
+      c.lineWidth=3;c.strokeStyle='rgba(4,7,15,.9)';c.strokeText(d.label,x+12,y-11);c.fillStyle=d.color;c.fillText(d.label,x+12,y-11);
+    }
+  }
+}
+function draw3d(items){
+  if(!W||!H)return;
+  const c=cx3;c.setTransform(dpr,0,0,dpr,0,0);
+  c.fillStyle='#04070f';c.fillRect(0,0,W,H);
+  for(const s of stars){c.globalAlpha=s.a;c.fillStyle='#cfe0ff';c.fillRect(s.x*W,s.y*H,s.s,s.s);}
+  c.globalAlpha=1;
+  let maxRd=1.35;for(const d of DEFS)if(S.show[d.id]&&d.copies.length)maxRd=Math.max(maxRd,rdOf(d.alt));
+  const tgt=Math.min(W,H)/2*.88/maxRd*S.zoom;Sc=Sc?Sc+(tgt-Sc)*.15:tgt;
+  const R=Sc,cx=W/2,cy=H/2;
+  earth(c,cx,cy,R);axis(c,cx,cy,R);
+  if(S.foot)footprints(c,cx,cy,R,items);
+  if(S.orbits)drawOrbits(c,cx,cy,R);
+  sats(c,cx,cy,R,items);
+}
+
+/* ---------- Bodenspur ---------- */
+const normLon=v=>((v+540)%360)-180;
+function geo(u){return[normLon(Math.atan2(u[1],u[0])/D2R-phi/D2R),Math.asin(clamp(u[2],-1,1))/D2R];}
+function drawMap(items){
+  if(!MW||!MH)return;
+  const c=cxm;c.setTransform(dpr,0,0,dpr,0,0);
+  const L=34,T=8,Rr=10,B=22,w=MW-L-Rr,h=MH-T-B;
+  const mx=lo=>L+(lo+180)/360*w,my=la=>T+(90-la)/180*h;
+  c.fillStyle='#0d1424';c.fillRect(0,0,MW,MH);
+  c.fillStyle='#0b2447';c.fillRect(L,T,w,h);
+  c.fillStyle='#2f7a58';
+  for(const poly of LAND){c.beginPath();poly.forEach(([lo,la],i)=>i?c.lineTo(mx(lo),my(la)):c.moveTo(mx(lo),my(la)));c.closePath();c.fill();}
+  c.lineWidth=1;c.strokeStyle='rgba(255,255,255,.14)';c.beginPath();
+  for(let lo=-180;lo<=180;lo+=30){c.moveTo(mx(lo),T);c.lineTo(mx(lo),T+h);}
+  for(let la=-90;la<=90;la+=30){c.moveTo(L,my(la));c.lineTo(L+w,my(la));}
+  c.stroke();
+  c.strokeStyle='rgba(255,255,255,.4)';c.beginPath();c.moveTo(L,my(0));c.lineTo(L+w,my(0));c.stroke();
+  c.fillStyle='#92a1bd';c.font='11px "IBM Plex Mono",ui-monospace,monospace';c.textBaseline='middle';
+  c.textAlign='center';
+  for(let lo=-180;lo<=180;lo+=60)c.fillText(lo===0?'0°':Math.abs(lo)+'°'+(lo<0?'W':'O'),mx(lo),T+h+11);
+  c.textAlign='right';
+  for(let la=-60;la<=60;la+=30)c.fillText(la===0?'0°':Math.abs(la)+'°'+(la<0?'S':'N'),L-5,my(la));
+  c.textAlign='left';
+  /* Spuren */
+  const o=[0,0,0];
+  for(const d of DEFS){
+    if(!S.show[d.id]||!d.copies.length)continue;
+    if(d.id==='starlink'&&S.sel!=='starlink')continue;
+    const cp=d.copies[0],span=Math.min(2*TAU/d.n,SID),N=240,K=6,sel=S.sel===d.id;
+    for(let ch=0;ch<K;ch++){
+      const path=new Path2D();let pl=null;
+      for(let k=ch*N/K;k<=(ch+1)*N/K;k++){
+        const tt=S.t-span*(1-k/N);unit(d,cp,tt,o);
+        const lo=normLon(Math.atan2(o[1],o[0])/D2R-WE*tt/D2R),la=Math.asin(clamp(o[2],-1,1))/D2R;
+        if(pl===null||Math.abs(lo-pl)>180)path.moveTo(mx(lo),my(la));else path.lineTo(mx(lo),my(la));
+        pl=lo;
+      }
+      c.lineWidth=sel?2.2:1.5;c.strokeStyle=hexA(d.color,(.1+.8*(ch+1)/K)*(sel?1:.8));c.stroke(path);
+    }
+  }
+  /* Positionen */
+  c.font='500 12px "IBM Plex Sans",system-ui,sans-serif';
+  for(const it of items){
+    const d=it.d,[lo,la]=geo(it.u),x=mx(lo),y=my(la);
+    if(d.id==='starlink'){c.fillStyle=hexA(d.color,.9);c.fillRect(x-1.1,y-1.1,2.2,2.2);continue;}
+    c.fillStyle=d.color;c.strokeStyle='#04070f';c.lineWidth=2;c.beginPath();c.arc(x,y,d.id==='gps'?3.2:4.6,0,TAU);c.stroke();c.fill();
+    if(it.i===0&&S.labels){
+      c.textAlign=x>L+w-70?'right':'left';const tx=x+(c.textAlign==='left'?8:-8);
+      c.lineWidth=3;c.strokeStyle='rgba(4,7,15,.9)';c.strokeText(d.label,tx,y-9);c.fillStyle=d.color;c.fillText(d.label,tx,y-9);
+    }
+  }
+  c.textAlign='left';
+}
+
+/* ---------- Bedienfeld ---------- */
+const fmtT=T=>{if(T<7200)return nf(T/60,1)+' min';const m=Math.round(T/60);return Math.floor(m/60)+' h '+String(m%60).padStart(2,'0')+' min';};
+const dur=s=>s<60?nf(s)+' s':s<3600?nf(s/60)+' min':s<86400?nf(s/3600)+' h':nf(s/86400)+' d';
+function metaOf(d){
+  const m=dataOf(d);
+  let extra='';if(d.id==='starlink')extra=' · '+d.copies.length+' Sat.';else if(d.id==='gps')extra=' · '+d.copies.length+' Sat.';
+  return nf(d.alt)+' km · T '+fmtT(m.T)+extra;
+}
+function buildList(){
+  const ul=$('list');ul.innerHTML='';
+  for(const d of DEFS){
+    const li=document.createElement('li');li.className='sat';li.dataset.id=d.id;li.style.setProperty('--c',d.color);
+    li.innerHTML=`<input type="checkbox" aria-label="${d.name} anzeigen"${S.show[d.id]?' checked':''}><div><div class="nm"><i></i>${d.name}</div><div class="mt"></div></div>`;
+    li.querySelector('input').addEventListener('change',e=>{S.show[d.id]=e.target.checked?1:0;});
+    li.addEventListener('click',e=>{if(e.target.tagName!=='INPUT')setSel(d.id);});
+    ul.appendChild(li);
+  }
+  refreshMeta();
+}
+function refreshMeta(){
+  document.querySelectorAll('#list .sat').forEach(li=>{
+    const d=DEF[li.dataset.id];li.querySelector('.mt').textContent=metaOf(d);li.classList.toggle('on',S.sel===d.id);
+  });
+}
+function info(){
+  const d=DEF[S.sel],m=dataOf(d);
+  $('info').innerHTML=`<div class="ih"><i style="background:${d.color}"></i><h3>${d.name}</h3><span class="tag">${d.tag}</span></div>
+  <p>${d.text}</p>
+  <dl class="data">
+   <dt>Höhe über dem Äquator</dt><dd>${nf(d.alt)} km</dd>
+   <dt>Bahnradius r</dt><dd>${nf(m.r)} km</dd>
+   <dt>Geschwindigkeit v</dt><dd>${nf(m.v,2)} km/s (${nf(m.v*3600)} km/h)</dd>
+   <dt>Umlaufzeit T</dt><dd>${fmtT(m.T)}</dd>
+   <dt>Umläufe pro Tag</dt><dd>${nf(m.perDay,1)}</dd>
+   <dt>Bahnneigung</dt><dd>${nf(d.inc,1)}°</dd>
+   <dt>Fallbeschleunigung g</dt><dd>${nf(m.g,1)} m/s²</dd>
+   <dt>Sichtbereich</dt><dd>${nf(m.cov)} % der Erdoberfläche</dd>
+  </dl>
+  <p class="formel">v = √(GM/r) · T = 2π·√(r³/GM)</p>`;
+}
+function ownText(){
+  const d=DEF.own,m=dataOf(d),geoStat=Math.abs(m.T-SID)/SID<.002&&d.inc<.5;
+  $('ownTxt').innerHTML=`T = <strong>${fmtT(m.T)}</strong> · v = <strong>${nf(m.v,2)} km/s</strong>`+
+    (geoStat?'<br><strong>Geostationär:</strong> T ist gleich der Erdrotation (23 h 56 min), der Satellit bleibt über einem Punkt.':
+     m.T>SID?'<br>Langsamer als die Erdrotation: Er wandert nach Westen zurück.':'<br>Schneller als die Erdrotation: Er wandert nach Osten voraus.');
+}
+function setSel(id){S.sel=id;refreshMeta();info();}
+function syncView(){
+  const a=Math.round(S.az),e=Math.round(S.el);
+  $('az').value=a;$('el').value=e;$('azv').textContent=a+'°';$('elv').textContent=e+'°';
+}
+function ctl(id,fn,fmt){
+  const el=$(id),out=$(id+'v');
+  const f=()=>{const v=+el.value;fn(v);if(out)out.textContent=fmt(v);};
+  el.addEventListener('input',f);f();return f;
+}
+ctl('az',v=>{S.az=v;},v=>v+'°');
+ctl('el',v=>{S.el=v;},v=>v+'°');
+ctl('zoom',v=>{S.zoom=v/100;},v=>'×'+nf(v/100,1));
+ctl('scale',v=>{S.k=1-.65*v/100;$('note').textContent=v?'Höhen sind gestaucht dargestellt, damit alle Bahnen erkennbar bleiben. Reihenfolge und Bahnformen stimmen.':'Erde und Bahnen maßstabsgetreu.';},v=>v?v+' %':'maßstäblich');
+ctl('size',v=>{S.size=v/100;},v=>'×'+nf(v/100,1));
+ctl('speed',v=>{S.speedIdx=v;},v=>'×'+nf(SPEEDS[v])+' (1 s = '+dur(SPEEDS[v])+')');
+ctl('planes',v=>{S.planes=v;buildStarlink();if($('list').children.length)refreshMeta();},v=>v+' Ebenen · '+v*22+' Satelliten');
+const ownF=()=>{DEF.own.alt=+$('ownAlt').value;DEF.own.inc=+$('ownInc').value;prep(DEF.own);if($('list').children.length){refreshMeta();if(S.sel==='own')info();}ownText();};
+ctl('ownAlt',()=>ownF(),v=>nf(v)+' km');
+ctl('ownInc',()=>ownF(),v=>v+'°');
+for(const id of['orbits','foot','labels','auto'])$(id).addEventListener('change',e=>{S[id]=e.target.checked?1:0;});
+$('orbits').checked=!!S.orbits;
+document.querySelectorAll('[data-el]').forEach(b=>b.addEventListener('click',()=>{S.az=+b.dataset.az;S.el=+b.dataset.el;syncView();}));
+document.querySelectorAll('[data-alt]').forEach(b=>b.addEventListener('click',()=>{
+  $('ownAlt').value=b.dataset.alt;if(b.dataset.inc!==undefined)$('ownInc').value=b.dataset.inc;
+  $('ownAlt').dispatchEvent(new Event('input'));$('ownInc').dispatchEvent(new Event('input'));
+  S.show.own=1;buildList();}));
+$('play').addEventListener('click',()=>{S.play=!S.play;$('play').textContent=S.play?'Pause':'Start';});
+$('reset').addEventListener('click',()=>{S.t=0;});
+$('play').textContent=S.play?'Pause':'Start';
+
+/* ---------- Maus, Touch, Tastatur ---------- */
+let drag=null;
+cv.addEventListener('pointerdown',e=>{cv.setPointerCapture(e.pointerId);drag={x:e.clientX,y:e.clientY,sx:e.clientX,sy:e.clientY,t:e.pointerType};});
+cv.addEventListener('pointermove',e=>{
+  if(!drag)return;
+  const dx=e.clientX-drag.x,dy=e.clientY-drag.y;drag.x=e.clientX;drag.y=e.clientY;
+  S.az=(S.az+dx*.4+360)%360;S.vaz=S.az;
+  if(drag.t!=='touch'){S.el=clamp(S.el+dy*.35,-90,90);S.vel=S.el;}
+  syncView();
+});
+cv.addEventListener('pointerup',e=>{
+  if(drag&&Math.hypot(e.clientX-drag.sx,e.clientY-drag.sy)<5){
+    const r=cv.getBoundingClientRect(),px=e.clientX-r.left,py=e.clientY-r.top;let best=null,bd=18;
+    for(const h of hits){const dd=Math.hypot(h.x-px,h.y-py)+(h.hid?6:0);if(dd<bd){bd=dd;best=h;}}
+    if(best)setSel(best.id);
+  }
+  drag=null;
+});
+cv.addEventListener('pointercancel',()=>{drag=null;});
+cv.addEventListener('keydown',e=>{
+  const k=e.key;let used=true;
+  if(k==='ArrowLeft')S.az=(S.az-5+360)%360;else if(k==='ArrowRight')S.az=(S.az+5)%360;
+  else if(k==='ArrowUp')S.el=clamp(S.el+5,-90,90);else if(k==='ArrowDown')S.el=clamp(S.el-5,-90,90);else used=false;
+  if(used){e.preventDefault();syncView();}
+});
+
+/* ---------- Start ---------- */
+function clock(){
+  const t=Math.floor(S.t),d=Math.floor(t/86400),h=Math.floor(t%86400/3600),m=Math.floor(t%3600/60);
+  const s=d+' d '+String(h).padStart(2,'0')+' h '+String(m).padStart(2,'0')+' min';
+  if($('clock').textContent!==s)$('clock').textContent=s;
+}
+buildList();info();ownText();syncView();fit();
+if(window.ResizeObserver){const ro=new ResizeObserver(fit);ro.observe(cv);ro.observe(mv);}else addEventListener('resize',fit);
+let last=performance.now();
+function frame(now){
+  const dt=Math.min(.1,(now-last)/1000);last=now;
+  if(S.play)S.t+=dt*SPEEDS[S.speedIdx];
+  phi=WE*S.t;
+  if(S.auto){S.az=(S.az+dt*10)%360;syncView();}
+  const da=((S.az-S.vaz+540)%360)-180;S.vaz=(S.vaz+da*.2+360)%360;S.vel+=(S.el-S.vel)*.2;
+  setCam();
+  const items=collect();
+  draw3d(items);drawMap(items);clock();
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+})();
+</script>
+
+</body></html>

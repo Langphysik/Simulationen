@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Simulationen</title>
+<meta name="description" content="Interaktive Simulationen für den Unterricht – läuft vollständig offline.">
+<meta name="theme-color" content="#1E293B">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Simulationen">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<style>
+  :root{
+    --ink:#1E293B; --mut:#64748B; --line:#E2E8F0; --card:#F1F5F9;
+    --red:#E24B4A; --blue:#2563EB; --green:#137B5E; --bg:#FFFFFF;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{font-family:"Segoe UI",system-ui,-apple-system,Roboto,Helvetica,Arial,sans-serif;
+    color:var(--ink); background:#EEF1F5; line-height:1.45; -webkit-font-smoothing:antialiased}
+  .wrap{max-width:1040px; margin:0 auto;
+    padding:calc(24px + env(safe-area-inset-top,0px)) 16px calc(32px + env(safe-area-inset-bottom,0px))}
+  h1{font-size:30px; font-weight:800; margin:0 0 4px; letter-spacing:-.01em}
+  .sub{color:var(--mut); font-size:15px; margin:0}
+
+  section{margin-top:26px}
+  h2{font-size:12px; font-weight:700; letter-spacing:2px; text-transform:uppercase; color:#C0392B; margin:0 0 10px}
+  .list{display:grid; grid-template-columns:repeat(auto-fill,minmax(min(100%,420px),1fr)); gap:10px}
+
+  .sim{display:flex; gap:14px; align-items:center; min-height:92px; padding:12px 14px;
+    background:var(--bg); border-radius:14px; color:inherit; text-decoration:none;
+    box-shadow:0 2px 10px rgba(30,41,59,.07); transition:box-shadow .15s}
+  .sim:hover{box-shadow:0 6px 20px rgba(30,41,59,.14)}
+  .sim:active{background:#F8FAFC}
+  .sim:focus-visible{outline:2px solid var(--blue); outline-offset:2px}
+  .sim svg{flex:none; width:64px; height:64px; border-radius:12px; background:var(--card)}
+  .sim h3{font-size:16.5px; font-weight:700; margin:0 0 2px; line-height:1.25}
+  .sim p{font-size:13.5px; color:var(--mut); margin:0; line-height:1.35}
+  .txt{min-width:0}
+
+  footer{margin-top:28px; font-size:13px; color:var(--mut); display:flex; gap:8px; align-items:center}
+  #dot{flex:none; width:8px; height:8px; border-radius:50%; background:#94A3B8}
+  #dot.ok{background:var(--green)}
+  @media (prefers-reduced-motion:reduce){ *{transition:none!important} }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Simulationen</h1>
+    <p class="sub">Zum Ausprobieren und Nachrechnen: Technik, Physik, Mathe</p>
+  </header>
+
+  <section>
+    <h2>Technische Mechanik</h2>
+    <div class="list">
+      <a class="sim" href="sims/balken.html">
+        <svg viewBox="0 0 64 64" aria-hidden="true" fill="none" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M9 25h46" stroke="#1E293B" stroke-width="4"/>
+          <path d="M16 27l-5 8h10zM48 27l-5 8h10z" fill="#1E293B"/>
+          <path d="M32 9v11M28.5 16l3.5 4 3.5-4" stroke="#2563EB" stroke-width="2.5"/>
+          <path d="M10 42c6 13 38 13 44 0" stroke="#E24B4A" stroke-width="3"/>
+        </svg>
+        <div class="txt">
+          <h3>Balken-Rechner</h3>
+          <p>Geneigter Balken mit Überstand und Lasten: Verlauf von N, Q und M</p>
+        </div>
+      </a>
+      <a class="sim" href="sims/fachwerk-4-staebe.html">
+        <svg viewBox="0 0 64 64" aria-hidden="true" fill="none" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M13 10v44" stroke="#64748B" stroke-width="3"/>
+          <path d="M13 16L34 30 13 48M34 30L52 40 13 48" stroke="#1E293B" stroke-width="3"/>
+          <path d="M52 40v10M49 47l3 3.5 3-3.5" stroke="#2563EB" stroke-width="2.5"/>
+          <g fill="#E24B4A"><circle cx="34" cy="30" r="3.5"/><circle cx="52" cy="40" r="3.5"/></g>
+        </svg>
+        <div class="txt">
+          <h3>Fachwerk · 4 Stäbe</h3>
+          <p>Wandfachwerk mit Einzellast: Stabkräfte nach dem Knotenpunktverfahren</p>
+        </div>
+      </a>
+      <a class="sim" href="sims/fachwerk-hallenbinder.html">
+        <svg viewBox="0 0 64 64" aria-hidden="true" fill="none" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M7 44h50L32 16zM19.5 30V44M44.5 30V44M32 16v28M19.5 30L32 44 44.5 30" stroke="#1E293B" stroke-width="2.5"/>
+          <path d="M32 4v8M29 9l3 3.5L35 9" stroke="#2563EB" stroke-width="2.5"/>
+          <path d="M7 46l-4 7h8zM57 46l-4 7h8z" fill="#E24B4A"/>
+        </svg>
+        <div class="txt">
+          <h3>Fachwerk · Hallenbinder</h3>
+          <p>Symmetrischer Binder mit 11 Stäben und Last an der Spitze</p>
+        </div>
+      </a>
+    </div>
+  </section>
+
+  <section>
+    <h2>Physik</h2>
+    <div class="list">
+      <a class="sim" href="sims/satellitenbahnen.html">
+        <svg viewBox="0 0 64 64" aria-hidden="true" fill="none" style="background:#0D1424">
+          <ellipse cx="32" cy="32" rx="26" ry="11" transform="rotate(-24 32 32)" stroke="#FFB84D" stroke-width="2"/>
+          <ellipse cx="32" cy="32" rx="16" ry="22" transform="rotate(32 32 32)" stroke="#58D68D" stroke-width="2"/>
+          <circle cx="32" cy="32" r="8" fill="#6AA9FF"/>
+          <circle cx="55.8" cy="21.4" r="3.5" fill="#fff"/>
+        </svg>
+        <div class="txt">
+          <h3>Satellitenbahnen</h3>
+          <p>GEO, GPS, Wettersatellit, ISS und Starlink in 3D mit Bodenspur</p>
+        </div>
+      </a>
+    </div>
+  </section>
+
+  <section>
+    <h2>Mathematik</h2>
+    <div class="list">
+      <a class="sim" href="sims/kletterwand.html">
+        <svg viewBox="0 0 64 64" aria-hidden="true" fill="none" stroke-linejoin="round" stroke-linecap="round">
+          <path d="M12 46L24 22h26L44 44z" fill="#DBEAFE" stroke="#1E293B" stroke-width="2.5"/>
+          <path d="M24 22l10-13 16 13z" fill="#93C5FD" stroke="#1E293B" stroke-width="2.5"/>
+          <path d="M34 9v45" stroke="#2563EB" stroke-width="2" stroke-dasharray="3 4"/>
+          <circle cx="34" cy="56" r="3" fill="#E24B4A"/>
+        </svg>
+        <div class="txt">
+          <h3>Kletterwand</h3>
+          <p>Analytische Geometrie in 3D mit Verständnisfragen (Mathe 13 NT, 2025)</p>
+        </div>
+      </a>
+    </div>
+  </section>
+
+  <footer><i id="dot"></i><span id="status" role="status">Offline-Modus wird eingerichtet …</span></footer>
+</div>
+<script>
+const statusEl=document.getElementById("status"), dot=document.getElementById("dot");
+if("serviceWorker" in navigator){
+  navigator.serviceWorker.register("sw.js").catch(()=>{statusEl.textContent="Offline-Modus nicht verfügbar";});
+  navigator.serviceWorker.ready.then(()=>{statusEl.textContent="Alles auf dem Gerät gespeichert, läuft auch ohne Internet"; dot.classList.add("ok");});
+}else{
+  statusEl.textContent="Offline-Modus wird von diesem Browser nicht unterstützt";
+}
+</script>
+</body>
+</html>

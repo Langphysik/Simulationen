@@ -1,0 +1,1008 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Balken-Rechner · N-, Q- und M-Verlauf</title>
+<style>
+  :root{
+    --ink:#1E293B; --mut:#64748B; --line:#E2E8F0; --card:#F1F5F9; --card2:#F8FAFC;
+    --red:#E24B4A; --reddk:#C0392B; --green:#137B5E; --greenbg:#E7F3EE; --redbg:#FBEAE7;
+    --blue:#2563EB; --bluedk:#1D4ED8; --amber:#B45309; --amberbg:#FEF3C7;
+    --bg:#FFFFFF; --hatch:#94A3B8;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{font-family:"Segoe UI",system-ui,-apple-system,Roboto,Helvetica,Arial,sans-serif;
+    color:var(--ink); background:#EEF1F5; line-height:1.45; -webkit-font-smoothing:antialiased}
+  .wrap{max-width:1240px; margin:0 auto; padding:26px 20px 56px}
+  .eyebrow{font-size:12px; font-weight:700; letter-spacing:2px; color:var(--red); text-transform:uppercase}
+  h1{font-size:31px; font-weight:800; margin:4px 0 6px; letter-spacing:-.01em}
+  .sub{color:var(--mut); font-size:15px; max-width:78ch; margin:0}
+
+  .grid{display:grid; grid-template-columns:352px 1fr; gap:18px; align-items:start}
+  .panel{background:var(--bg); border-radius:14px; padding:16px 18px 10px; box-shadow:0 6px 20px rgba(30,41,59,.08)}
+  .grp{border-top:1px solid var(--line); padding-top:12px; margin-top:12px}
+  .grp:first-of-type{border-top:none; padding-top:0; margin-top:0}
+  .grp h3{font-size:12px; font-weight:700; letter-spacing:1.4px; text-transform:uppercase;
+    color:var(--mut); margin:0 0 12px}
+  .ctrl{margin-bottom:13px}
+  .ctrl .row{display:flex; justify-content:space-between; align-items:baseline; margin-bottom:4px; gap:8px}
+  .ctrl .name{font-size:13.5px; font-weight:600}
+  .ctrl .name small{color:var(--mut); font-weight:500}
+  .ctrl .val{font-size:13.5px; font-weight:700; font-variant-numeric:tabular-nums; white-space:nowrap}
+  .ctrl .val em{color:var(--mut); font-weight:500; font-style:normal; font-size:12px}
+  input[type=range]{width:100%; accent-color:var(--blue); height:22px; cursor:pointer; margin:0}
+  input[type=range]:focus-visible{outline:2px solid var(--bluedk); outline-offset:3px; border-radius:6px}
+  select{font:inherit; font-size:13px; font-weight:600; color:var(--ink); background:var(--card);
+    border:1px solid var(--line); border-radius:8px; padding:6px 8px; cursor:pointer; width:100%}
+  select:focus-visible{outline:2px solid var(--bluedk); outline-offset:2px}
+  .two{display:grid; grid-template-columns:1fr 1fr; gap:9px; margin-bottom:13px}
+  .two label{display:block; font-size:12px; font-weight:600; color:var(--mut); margin-bottom:4px}
+  .fbox{background:var(--card2); border:1px solid var(--line); border-radius:10px; padding:11px 11px 1px; margin-bottom:11px}
+  .fbox h4{margin:0 0 9px; font-size:12.5px; font-weight:800; letter-spacing:.4px}
+  .toggle{display:flex; align-items:center; gap:9px; font-size:13px; font-weight:600; padding:2px 0 10px; cursor:pointer; user-select:none}
+  .toggle input{width:16px; height:16px; accent-color:var(--blue); cursor:pointer; flex:none}
+  .actions{display:flex; gap:9px; padding:2px 0 10px; flex-wrap:wrap}
+  button.btn{font:inherit; font-size:13px; font-weight:600; color:var(--ink); background:var(--card);
+    border:1px solid var(--line); border-radius:9px; padding:8px 13px; cursor:pointer}
+  button.btn:hover{background:#E4EAF1}
+  button.btn:focus-visible{outline:2px solid var(--bluedk); outline-offset:2px}
+
+  .stage{background:var(--bg); border-radius:14px; padding:12px; box-shadow:0 6px 20px rgba(30,41,59,.08)}
+  svg{display:block; width:100%; height:auto}
+  .status{display:flex; align-items:center; gap:9px; margin-top:6px; padding:9px 12px; border-radius:9px;
+    font-size:13.5px; font-weight:600}
+  .status.ok{background:var(--greenbg); color:var(--green)}
+  .status.warn{background:var(--amberbg); color:var(--amber)}
+  .status.bad{background:var(--redbg); color:var(--reddk)}
+
+  .card{margin-top:18px; background:var(--bg); border-radius:14px; padding:18px; box-shadow:0 6px 20px rgba(30,41,59,.08)}
+  .card h2{font-size:16px; font-weight:800; margin:0 0 4px}
+  .card p.note{color:var(--mut); font-size:13px; margin:0 0 14px}
+  .chips{display:flex; gap:9px; flex-wrap:wrap}
+  .chip{background:var(--card); border:1px solid var(--line); border-radius:9px; padding:7px 12px;
+    font-size:13px; font-weight:600; font-variant-numeric:tabular-nums}
+  .chip b{color:var(--mut); font-weight:600; margin-right:6px}
+  .chart{margin-bottom:4px}
+  .head{display:flex; justify-content:space-between; align-items:flex-start; gap:16px; flex-wrap:wrap}
+  footer.foot{color:var(--mut); font-size:12.5px; margin-top:20px; text-align:center}
+  @media (max-width:920px){ .grid{grid-template-columns:1fr} h1{font-size:25px} }
+  #sheetWrap{display:none}
+  @media print{
+    body.psheet .wrap{display:none !important}
+    body.psheet #sheetWrap{display:block}
+    #sheetWrap svg{width:100%; height:auto}
+    body{background:#fff}
+    .wrap{max-width:none; padding:0}
+    .no-print{display:none !important}
+    .stage,.card{box-shadow:none !important; padding:0; margin:0 0 8px; border-radius:0}
+    @page{margin:14mm}
+  }
+</style>
+<meta name="theme-color" content="#1E293B">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Simulationen">
+<link rel="manifest" href="../manifest.json">
+<link rel="icon" href="../icons/icon-192.png">
+<link rel="apple-touch-icon" href="../icons/icon-180.png">
+<link rel="stylesheet" href="../app/shell.css">
+<script src="../app/shell.js" defer></script>
+</head>
+<body class="stick-stage">
+<nav class="appbar" aria-label="App"><a href="../index.html" data-back><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>Übersicht</a><span>Balken-Rechner</span></nav>
+<div class="wrap">
+  <header class="no-print">
+    <div class="eyebrow">Statik · Technische Mechanik</div>
+    <h1>Balken-Rechner</h1>
+    <p class="sub">Geneigter Balken mit Überstand, Einzelkräften und Streckenlast. Auflager, Lasten und Geometrie sind frei einstellbar — darunter entstehen live der Normalkraft-, Querkraft- und Momentenverlauf. Alle Längen werden entlang der Balkenachse gemessen.</p>
+  </header>
+
+  <div class="grid">
+    <!-- REGLER -->
+    <section class="panel no-print">
+      <div class="grp">
+        <h3>Balken</h3>
+        <div class="ctrl">
+          <div class="row"><span class="name">Neigung α <small>· zur Waagrechten</small></span><span class="val" id="v_alpha"></span></div>
+          <input type="range" id="alpha" min="0" max="90" step="1" value="15">
+        </div>
+        <div class="ctrl">
+          <div class="row"><span class="name">Überstand links</span><span class="val" id="v_ovlL"></span></div>
+          <input type="range" id="ovlL" min="0" max="10" step="0.5" value="2">
+        </div>
+        <div class="ctrl">
+          <div class="row"><span class="name">Überstand rechts</span><span class="val" id="v_ovlR"></span></div>
+          <input type="range" id="ovlR" min="0" max="10" step="0.5" value="2">
+        </div>
+      </div>
+
+      <div class="grp">
+        <h3>Auflager</h3>
+        <div class="ctrl">
+          <div class="row"><span class="name">Anzahl</span><span class="val" id="v_nSup"></span></div>
+          <input type="range" id="nSup" min="2" max="3" step="1" value="2">
+        </div>
+        <div class="ctrl">
+          <div class="row"><span class="name">Abstand A–B</span><span class="val" id="v_span"></span></div>
+          <input type="range" id="span" min="5" max="20" step="0.5" value="10">
+        </div>
+        <div class="two">
+          <div><label>Art Auflager A</label>
+            <select id="tA"><option value="fest">Festlager</option><option value="los">Loslager</option></select></div>
+          <div><label>Art Auflager B</label>
+            <select id="tB"><option value="los">Loslager</option><option value="fest">Festlager</option></select></div>
+        </div>
+        <div id="cBox" style="display:none">
+          <div class="ctrl">
+            <div class="row"><span class="name">Position Auflager C</span><span class="val" id="v_sC"></span></div>
+            <input type="range" id="sC" min="0" max="14" step="0.1" value="7">
+          </div>
+          <div class="two"><div><label>Art Auflager C</label>
+            <select id="tC"><option value="los">Loslager</option><option value="fest">Festlager</option></select></div><div></div></div>
+        </div>
+      </div>
+
+      <div class="grp">
+        <h3>Einzelkräfte</h3>
+        <div class="ctrl">
+          <div class="row"><span class="name">Anzahl</span><span class="val" id="v_nF"></span></div>
+          <input type="range" id="nF" min="1" max="3" step="1" value="2">
+        </div>
+        <div class="fbox" id="fbox1">
+          <h4 style="color:var(--red)">F₁</h4>
+          <div class="ctrl"><div class="row"><span class="name">Betrag</span><span class="val" id="v_F1mag"></span></div>
+            <input type="range" id="F1mag" min="20" max="150" step="1" value="100"></div>
+          <div class="ctrl"><div class="row"><span class="name">Position</span><span class="val" id="v_F1pos"></span></div>
+            <input type="range" id="F1pos" min="0" max="14" step="0.1" value="10"></div>
+          <div class="ctrl"><div class="row"><span class="name">Winkel zum Balken</span><span class="val" id="v_F1ang"></span></div>
+            <input type="range" id="F1ang" min="0" max="180" step="1" value="120"></div>
+        </div>
+        <div class="fbox" id="fbox2">
+          <h4 style="color:var(--red)">F₂</h4>
+          <div class="ctrl"><div class="row"><span class="name">Betrag</span><span class="val" id="v_F2mag"></span></div>
+            <input type="range" id="F2mag" min="10" max="100" step="1" value="60"></div>
+          <div class="ctrl"><div class="row"><span class="name">Position</span><span class="val" id="v_F2pos"></span></div>
+            <input type="range" id="F2pos" min="0" max="14" step="0.1" value="6"></div>
+          <div class="ctrl"><div class="row"><span class="name">Winkel zum Balken</span><span class="val" id="v_F2ang"></span></div>
+            <input type="range" id="F2ang" min="0" max="180" step="1" value="90"></div>
+        </div>
+        <div class="fbox" id="fbox3">
+          <h4 style="color:var(--red)">F₃</h4>
+          <div class="ctrl"><div class="row"><span class="name">Betrag</span><span class="val" id="v_F3mag"></span></div>
+            <input type="range" id="F3mag" min="10" max="100" step="1" value="40"></div>
+          <div class="ctrl"><div class="row"><span class="name">Position</span><span class="val" id="v_F3pos"></span></div>
+            <input type="range" id="F3pos" min="0" max="14" step="0.1" value="12"></div>
+          <div class="ctrl"><div class="row"><span class="name">Winkel zum Balken</span><span class="val" id="v_F3ang"></span></div>
+            <input type="range" id="F3ang" min="0" max="180" step="1" value="90"></div>
+        </div>
+      </div>
+
+      <div class="grp">
+        <h3>Streckenlast q <small style="text-transform:none;letter-spacing:0">(lotrecht · 0 = aus)</small></h3>
+        <div class="ctrl">
+          <div class="row"><span class="name">Größe</span><span class="val" id="v_q"></span></div>
+          <input type="range" id="q" min="0" max="12" step="0.5" value="5">
+        </div>
+        <div class="ctrl">
+          <div class="row"><span class="name">Startposition</span><span class="val" id="v_qs"></span></div>
+          <input type="range" id="qs" min="0" max="14" step="0.1" value="0">
+        </div>
+        <div class="ctrl">
+          <div class="row"><span class="name">Ausdehnung</span><span class="val" id="v_qLen"></span></div>
+          <input type="range" id="qLen" min="0.5" max="14" step="0.1" value="6">
+        </div>
+      </div>
+
+      <div class="grp">
+        <label class="toggle"><input type="checkbox" id="mDown" checked>Moment auf der Zugseite auftragen (positiv nach unten)</label>
+        <div class="actions">
+          <button class="btn" id="reset" type="button">Zurücksetzen</button>
+          <button class="btn" id="print" type="button">Drucken</button>
+          <button class="btn" id="pSol" type="button">Ausdruck Lösung</button>
+          <button class="btn" id="pStu" type="button">Schülerversion</button>
+          <button class="btn" id="pMom" type="button">Schülerversion – Momente zeichnen</button>
+        </div>
+        <h3 style="margin-top:6px">PowerPoint (A4, bearbeitbar)</h3>
+        <div class="actions">
+          <button class="btn" id="xSol" type="button">Ausdruck Lösung PPP</button>
+          <button class="btn" id="xStu" type="button">Schülerversion PPP</button>
+          <button class="btn" id="xMom" type="button">Momente zeichnen PPP</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- SYSTEM -->
+    <section class="stage">
+      <svg id="sys" viewBox="0 0 900 470" role="img" aria-label="Statisches System"></svg>
+      <div class="status ok" id="status"><span class="ic">✓</span><span id="statusText"></span></div>
+    </section>
+  </div>
+
+  <!-- VERLÄUFE -->
+  <section class="card">
+    <div class="head">
+      <div>
+        <h2>Schnittgrößen</h2>
+        <p class="note">Aufgetragen über der Balkenachse s (0 … Balkenlänge). Vorzeichen: N positiv = Zug, Q und M nach der üblichen Konvention (Schnittufer links).</p>
+      </div>
+    </div>
+    <div class="chart"><svg id="chN" viewBox="0 0 900 158"></svg></div>
+    <div class="chart"><svg id="chQ" viewBox="0 0 900 158"></svg></div>
+    <div class="chart"><svg id="chM" viewBox="0 0 900 158"></svg></div>
+  </section>
+
+  <!-- ERGEBNISSE -->
+  <section class="card no-print">
+    <h2>Auflagerkräfte &amp; Extremwerte</h2>
+    <p class="note" id="detNote"></p>
+    <div class="chips" id="chips"></div>
+    <div class="chips" id="ext" style="margin-top:10px"></div>
+  </section>
+
+  <footer class="foot no-print">Rechenmodell: ebenes Stabwerk (Normalkraft + Biegung), Auflagerkräfte aus dem Gleichgewicht bzw. — bei statisch unbestimmten Systemen — aus der elastischen Lösung.</footer>
+</div>
+
+<div id="sheetWrap"><svg id="sheet" viewBox="0 0 794 1123" xmlns="http://www.w3.org/2000/svg"></svg></div>
+
+<script>
+"use strict";
+const NS="http://www.w3.org/2000/svg";
+const COL={ink:"#1E293B",mut:"#64748B",line:"#E2E8F0",red:"#E24B4A",reddk:"#C0392B",
+  green:"#137B5E",blue:"#2563EB",hatch:"#94A3B8",q:"#7C3AED",dash:"#B6BECB"};
+const EA=2.1e6, EI=2.1e4;                    // kN, kNm²  (Stahlprofil)
+const DEF={alpha:15,span:10,ovlL:2,ovlR:2,nSup:2,sC:7,nF:2,
+  F1mag:100,F1pos:10,F1ang:120,F2mag:60,F2pos:6,F2ang:90,F3mag:40,F3pos:12,F3ang:90,
+  q:5,qs:0,qLen:6};
+const SUBS=["\u2081","\u2082","\u2083"];
+
+const num=(x,n)=>x.toFixed(n).replace(".",",");
+const sgn=(x,n)=>(x>=0?"+":"\u2212")+num(Math.abs(x),n);
+const el=(t,a,x)=>{const e=document.createElementNS(NS,t);
+  for(const k in a) e.setAttribute(k,a[k]); if(x!==undefined) e.textContent=x; return e;};
+
+/* ================= Rechenkern ================= */
+function model(S){
+  const a=S.alpha*Math.PI/180;
+  const t={x:Math.cos(a),y:Math.sin(a)}, z={x:Math.sin(a),y:-Math.cos(a)};
+  const L=S.L;
+  const sup=[{s:S.ovlL,type:S.tA,name:"A"},{s:S.ovlL+S.span,type:S.tB,name:"B"}];
+  if(S.nSup>=3) sup.push({s:S.sC,type:S.tC,name:"C"});
+  const F=[];
+  for(let i=0;i<S.nF;i++){
+    const th=S.Fa[i]*Math.PI/180;
+    const ex=Math.cos(th)*t.x+Math.sin(th)*z.x, ey=Math.cos(th)*t.y+Math.sin(th)*z.y;
+    F.push({s:S.Fs[i],mag:S.F[i],ang:S.Fa[i],fx:S.F[i]*ex,fy:S.F[i]*ey,ex,ey});
+  }
+  const q0=Math.max(0,Math.min(L,S.qs)), q1=Math.max(0,Math.min(L,S.qs+S.qLen));
+  return {a,t,z,L,sup,F,q0,q1,q:S.q};
+}
+const pt=(m,s)=>({x:s*m.t.x, y:s*m.t.y});
+
+function solveLin(K,f){
+  const n=f.length, A=K.map((r,i)=>r.concat([f[i]]));
+  let sc=0; for(const r of K) for(const v of r) sc=Math.max(sc,Math.abs(v));
+  for(let c=0;c<n;c++){
+    let p=c; for(let r=c+1;r<n;r++) if(Math.abs(A[r][c])>Math.abs(A[p][c])) p=r;
+    if(Math.abs(A[p][c])<1e-9*sc) return null;
+    const tm=A[c]; A[c]=A[p]; A[p]=tm;
+    for(let r=0;r<n;r++){ if(r===c) continue; const fa=A[r][c]/A[c][c]; if(!fa) continue;
+      for(let k=c;k<=n;k++) A[r][k]-=fa*A[c][k]; }
+  }
+  return A.map((r,i)=>r[n]/A[i][i]);
+}
+function reactions(m){
+  const set=new Set([0,m.L]);
+  m.sup.forEach(s=>set.add(s.s)); m.F.forEach(f=>set.add(f.s));
+  if(m.q>0&&m.q1>m.q0){ set.add(m.q0); set.add(m.q1); }
+  const raw=[...set].filter(v=>v>=-1e-9&&v<=m.L+1e-9).sort((x,y)=>x-y);
+  const nd=[]; raw.forEach(v=>{ if(!nd.length||v-nd[nd.length-1]>1e-4) nd.push(v); });
+  if(nd.length<2) return null;
+  const n=nd.length, D=3*n;
+  const K=Array.from({length:D},()=>new Array(D).fill(0)), Fv=new Array(D).fill(0);
+  const c=Math.cos(m.a), s=Math.sin(m.a);
+  const R3=[[c,s,0],[-s,c,0],[0,0,1]];
+  for(let e=0;e<n-1;e++){
+    const l=nd[e+1]-nd[e]; if(l<1e-6) continue;
+    const ea=EA/l, b1=12*EI/(l*l*l), b2=6*EI/(l*l), b3=4*EI/l, b4=2*EI/l;
+    const kl=[[ea,0,0,-ea,0,0],[0,b1,b2,0,-b1,b2],[0,b2,b3,0,-b2,b4],
+              [-ea,0,0,ea,0,0],[0,-b1,-b2,0,b1,-b2],[0,b2,b4,0,-b2,b3]];
+    const T=Array.from({length:6},()=>new Array(6).fill(0));
+    for(let i=0;i<3;i++) for(let j=0;j<3;j++){ T[i][j]=R3[i][j]; T[i+3][j+3]=R3[i][j]; }
+    const kg=Array.from({length:6},()=>new Array(6).fill(0));
+    for(let i=0;i<6;i++) for(let j=0;j<6;j++){ let v=0;
+      for(let p=0;p<6;p++) for(let r=0;r<6;r++) v+=T[p][i]*kl[p][r]*T[r][j]; kg[i][j]=v; }
+    const dof=[3*e,3*e+1,3*e+2,3*e+3,3*e+4,3*e+5];
+    for(let i=0;i<6;i++) for(let j=0;j<6;j++) K[dof[i]][dof[j]]+=kg[i][j];
+    const o0=Math.max(nd[e],m.q0), o1=Math.min(nd[e+1],m.q1);
+    if(m.q>0 && o1>o0+1e-9){
+      const px=(-m.q)*s, py=(-m.q)*c;
+      const fl=[px*l/2, py*l/2, py*l*l/12, px*l/2, py*l/2, -py*l*l/12];
+      for(let i=0;i<6;i++){ let v=0; for(let p=0;p<6;p++) v+=T[p][i]*fl[p]; Fv[dof[i]]+=v; }
+    }
+  }
+  const near=x=>{let bi=0,bd=1e9; nd.forEach((v,i)=>{const d=Math.abs(v-x); if(d<bd){bd=d;bi=i;}}); return bi;};
+  m.F.forEach(f=>{const i=near(f.s); Fv[3*i]+=f.fx; Fv[3*i+1]+=f.fy;});
+  const fix=new Array(D).fill(false);
+  m.sup.forEach(sp=>{const i=near(sp.s);
+    if(sp.type==="fest"){fix[3*i]=true; fix[3*i+1]=true;} else fix[3*i+1]=true;});
+  const free=[]; for(let i=0;i<D;i++) if(!fix[i]) free.push(i);
+  const ur=solveLin(free.map(i=>free.map(j=>K[i][j])), free.map(i=>Fv[i]));
+  if(!ur) return null;
+  const u=new Array(D).fill(0); free.forEach((i,k)=>u[i]=ur[k]);
+  const Rv=new Array(D).fill(0);
+  for(let i=0;i<D;i++){ let v=0; for(let j=0;j<D;j++) v+=K[i][j]*u[j]; Rv[i]=v-Fv[i]; }
+  return m.sup.map(sp=>{const i=near(sp.s);
+    return {name:sp.name,s:sp.s,type:sp.type, Rx: sp.type==="fest"?Rv[3*i]:0, Ry:Rv[3*i+1]};});
+}
+function internal(m,R,s){
+  const rs=pt(m,s); let Fx=0,Fy=0,Mz=0;
+  const A=(p,fx,fy)=>{Fx+=fx; Fy+=fy; Mz+=(p.x-rs.x)*fy-(p.y-rs.y)*fx;};
+  R.forEach(r=>{ if(r.s<s-1e-9) A(pt(m,r.s), r.Rx, r.Ry); });
+  m.F.forEach(f=>{ if(f.s<s-1e-9) A(pt(m,f.s), f.fx, f.fy); });
+  const a=m.q0, b=Math.min(m.q1,s);
+  if(m.q>0 && b>a+1e-12) A(pt(m,(a+b)/2), 0, -m.q*(b-a));
+  return {N:-(Fx*m.t.x+Fy*m.t.y), Q:-(Fx*m.z.x+Fy*m.z.y), M:-Mz};
+}
+function sGrid(m){
+  const P=new Set(), eps=1e-6, marks=[0,m.L];
+  m.sup.forEach(s=>marks.push(s.s)); m.F.forEach(f=>marks.push(f.s));
+  if(m.q>0){ marks.push(m.q0); marks.push(m.q1); }
+  marks.forEach(x=>{ P.add(Math.max(0,x-eps)); P.add(Math.min(m.L,x+eps)); });
+  for(let i=0;i<=360;i++) P.add(m.L*i/360);
+  return [...P].filter(x=>x>=0&&x<=m.L).sort((a,b)=>a-b);
+}
+
+/* ================= Systemzeichnung ================= */
+function drawSystem(sv,m,ok){
+  const W=900,H=470;
+  sv.textContent="";
+  const add=n=>sv.appendChild(n);
+  const PL=86,PR=86,PT=128,PB=118;
+  const bw=m.L*Math.cos(m.a), bh=m.L*Math.sin(m.a);
+  const sc=Math.min((W-PL-PR)/Math.max(0.001,bw),(H-PT-PB)/Math.max(0.001,bh));
+  const ox=PL+((W-PL-PR)-bw*sc)/2, oy=PT+((H-PT-PB)-bh*sc)/2+bh*sc;
+  const px=p=>({x:ox+p.x*sc, y:oy-p.y*sc});
+  const B=s=>px(pt(m,s));
+  const P0=B(0), P1=B(m.L);
+  const tp={x:Math.cos(m.a), y:-Math.sin(m.a)};              // Balkenrichtung in px
+  const zp={x:Math.sin(m.a), y:Math.cos(m.a)};               // "unten" quer zum Balken in px
+
+  /* ---- Beschriftungen kollisionsfrei setzen ---- */
+  const placed=[];
+  const box=(t,x,y,s)=>{const w=t.length*s*0.58,h=s*1.05;
+    return {x0:x-w/2,y0:y-h*0.78,x1:x+w/2,y1:y+h*0.28};};
+  const ovl=b=>{let a=0; for(const p of placed){
+    const ox=Math.min(p.x1,b.x1)-Math.max(p.x0,b.x0), oy=Math.min(p.y1,b.y1)-Math.max(p.y0,b.y0);
+    if(ox>0&&oy>0) a+=ox*oy;} return a;};
+  const dBeam=(x,y)=>{const dx=P1.x-P0.x, dy=P1.y-P0.y, l2=dx*dx+dy*dy||1;
+    let t=((x-P0.x)*dx+(y-P0.y)*dy)/l2; t=Math.max(0,Math.min(1,t));
+    return Math.hypot(x-(P0.x+t*dx), y-(P0.y+t*dy));};
+  const pen=(x,y,r)=>{const d=dBeam(x,y); return d<r?(r-d)*55:0;};
+  const best=(c,f)=>{let bi=0,bs=Infinity; c.forEach((k,i)=>{const v=f(k); if(v<bs-1e-9){bs=v;bi=i;}}); return c[bi];};
+  const put=(t,x,y,s,fill,w,it)=>{placed.push(box(t,x,y,s));
+    const a={x:x.toFixed(1),y:y.toFixed(1),"text-anchor":"middle","font-size":s,
+      "font-weight":w||"700",fill:fill,stroke:"#fff","stroke-width":"3","paint-order":"stroke","stroke-linejoin":"round"};
+    if(it) a["font-style"]="italic";
+    add(el("text",a,t)); return box(t,x,y,s);};
+  const around=(Q,t,s,rs,dirs)=>{const c=[];
+    rs.forEach(R=>dirs.forEach(d=>{const l=Math.hypot(d[0],d[1]);
+      c.push({x:Q.x+d[0]/l*R, y:Q.y+d[1]/l*R+s*0.35, R});}));
+    return best(c, k=>ovl(box(t,k.x,k.y,s))+pen(k.x,k.y,12)+(k.R-rs[0])*0.8);};
+
+  /* Neigungswinkel α mit waagrechter Bezugslinie */
+  add(el("line",{x1:P0.x-16,y1:P0.y,x2:P0.x+86,y2:P0.y,stroke:COL.dash,"stroke-width":"1","stroke-dasharray":"6 4"}));
+  if(m.a>0.03){
+    const R=54;
+    add(el("path",{d:`M ${(P0.x+R).toFixed(1)} ${P0.y.toFixed(1)} A ${R} ${R} 0 0 0 ${(P0.x+R*tp.x).toFixed(1)} ${(P0.y+R*tp.y).toFixed(1)}`,
+      fill:"none",stroke:COL.mut,"stroke-width":"1.2"}));
+    const ha=-m.a/2, at=num(m.a*180/Math.PI,0)+"\u00B0";
+    const ac=best([R+16,R+29,R+42].map(r=>({x:P0.x+r*Math.cos(ha), y:P0.y+r*Math.sin(ha)+4, r})),
+      k=>ovl(box(at,k.x,k.y,12.5))+pen(k.x,k.y,12)+(k.r-R-16)*0.8);
+    put(at,ac.x,ac.y,12.5,COL.mut);
+  }
+
+  /* Streckenlast q */
+  if(m.q>0 && m.q1>m.q0+1e-6){
+    const h=13+30*(m.q/12);
+    const a0=B(m.q0), a1=B(m.q1);
+    const t0={x:a0.x,y:a0.y-h}, t1={x:a1.x,y:a1.y-h};
+    add(el("polygon",{points:`${a0.x},${a0.y} ${a1.x},${a1.y} ${t1.x},${t1.y} ${t0.x},${t0.y}`,
+      fill:COL.q,"fill-opacity":"0.10"}));
+    add(el("line",{x1:t0.x,y1:t0.y,x2:t1.x,y2:t1.y,stroke:COL.q,"stroke-width":"1.6"}));
+    const nA=Math.max(2,Math.min(11,Math.round((m.q1-m.q0)/m.L*11)+2));
+    for(let i=0;i<=nA;i++){
+      const b=B(m.q0+(m.q1-m.q0)*i/nA);
+      add(el("line",{x1:b.x,y1:b.y-h,x2:b.x,y2:b.y-4,stroke:COL.q,"stroke-width":"1.3"}));
+      add(el("polygon",{points:`${b.x},${b.y} ${b.x-3.4},${b.y-7} ${b.x+3.4},${b.y-7}`,fill:COL.q}));
+    }
+    const mid=B((m.q0+m.q1)/2);
+    const qt="q = "+num(m.q,1)+" kN/m";
+    const qc=best([0,-15,-29].map(dy=>({x:mid.x, y:mid.y-h-9+dy, dy})),
+      k=>ovl(box(qt,k.x,k.y,12))+pen(k.x,k.y,12)+Math.abs(k.dy)*0.7);
+    put(qt,qc.x,qc.y,12,COL.q,"700");
+  }
+
+  /* Balken */
+  add(el("line",{x1:P0.x,y1:P0.y,x2:P1.x,y2:P1.y,stroke:COL.ink,"stroke-width":"5.5","stroke-linecap":"round"}));
+
+  /* Auflager (senkrechte Auflagerkraft → waagrechte Sohle) */
+  m.sup.forEach(sp=>{
+    const p=B(sp.s), roller=sp.type==="los";
+    add(el("polygon",{points:`${p.x},${p.y} ${p.x-11},${p.y+19} ${p.x+11},${p.y+19}`,
+      fill:"#fff",stroke:COL.ink,"stroke-width":"1.6"}));
+    if(roller){
+      add(el("circle",{cx:p.x-5.5,cy:p.y+22.5,r:3.3,fill:"#fff",stroke:COL.ink,"stroke-width":"1.2"}));
+      add(el("circle",{cx:p.x+5.5,cy:p.y+22.5,r:3.3,fill:"#fff",stroke:COL.ink,"stroke-width":"1.2"}));
+    }
+    const y0=p.y+(roller?26:19);
+    add(el("line",{x1:p.x-16,y1:y0,x2:p.x+16,y2:y0,stroke:COL.ink,"stroke-width":"1.5"}));
+    for(let i=-15;i<=13;i+=5)
+      add(el("line",{x1:p.x+i,y1:y0+8,x2:p.x+i+5,y2:y0,stroke:COL.hatch,"stroke-width":"1"}));
+    add(el("circle",{cx:p.x,cy:p.y,r:3.6,fill:"#fff",stroke:COL.ink,"stroke-width":"1.6"}));
+    const sc2=around(p,sp.name,15,[26,36,46],[[-1,0.7],[1,0.7],[-1,0],[1,0],[-1,-0.6],[1,-0.6]]);
+    put(sp.name,sc2.x,sc2.y,15,COL.ink);
+  });
+
+  /* Einzelkräfte */
+  m.F.forEach((f,i)=>{
+    const p=B(f.s), len=32+44*(f.mag/150);
+    const ex=f.ex, ey=-f.ey;                                  // in px (y gespiegelt)
+    const s0={x:p.x-ex*len, y:p.y-ey*len};
+    add(el("line",{x1:s0.x.toFixed(1),y1:s0.y.toFixed(1),x2:(p.x-ex*9).toFixed(1),y2:(p.y-ey*9).toFixed(1),
+      stroke:COL.red,"stroke-width":"2.4","stroke-linecap":"round"}));
+    const nx=-ey, ny=ex;
+    add(el("polygon",{points:`${p.x},${p.y} ${(p.x-ex*11+nx*5).toFixed(1)},${(p.y-ey*11+ny*5).toFixed(1)} ${(p.x-ex*11-nx*5).toFixed(1)},${(p.y-ey*11-ny*5).toFixed(1)}`,fill:COL.red}));
+    /* F mit Vektorpfeil – weicht anderen Beschriftungen aus */
+    const ft="F"+SUBS[i], vt=num(f.mag,0)+" kN";
+    const cand=[];
+    [0,14,28].forEach(back=>[0,1,-1].forEach(side=>[0,1].forEach(fl=>{
+      const bx=s0.x-ex*(7+back)+nx*side*17*(fl?-1:1);
+      const by=s0.y-ey*(7+back)+ny*side*17*(fl?-1:1);
+      cand.push({x:bx+(ex>=0?-13:13), y:by-4, pen:back*0.8+Math.abs(side)*16});
+    })));
+    const fc=best(cand,k=>ovl(box(ft,k.x,k.y,15))+ovl(box(vt,k.x,k.y+13,11.5))
+      +pen(k.x,k.y,14)+pen(k.x,k.y+13,13)+k.pen);
+    const lx=fc.x, ly=fc.y;
+    put(ft,lx,ly,15,COL.red,"700",true);
+    add(el("line",{x1:(lx-8).toFixed(1),y1:(ly-15).toFixed(1),x2:(lx+7).toFixed(1),y2:(ly-15).toFixed(1),
+      stroke:COL.red,"stroke-width":"1.3","stroke-linecap":"round"}));
+    add(el("polygon",{points:`${(lx+9.5).toFixed(1)},${(ly-15).toFixed(1)} ${(lx+6).toFixed(1)},${(ly-17.4).toFixed(1)} ${(lx+6).toFixed(1)},${(ly-12.6).toFixed(1)}`,fill:COL.red}));
+    put(vt,lx,ly+13,11.5,COL.reddk,"600");
+    /* Winkel zwischen Balken und Kraft */
+    const R=26, a1=Math.atan2(tp.y,tp.x), a2=Math.atan2(ey,ex);
+    let dl=a2-a1; while(dl<=-Math.PI) dl+=2*Math.PI; while(dl>Math.PI) dl-=2*Math.PI;
+    const st={x:p.x+R*tp.x, y:p.y+R*tp.y}, en={x:p.x+R*ex, y:p.y+R*ey};
+    add(el("path",{d:`M ${st.x.toFixed(1)} ${st.y.toFixed(1)} A ${R} ${R} 0 0 ${dl>0?1:0} ${en.x.toFixed(1)} ${en.y.toFixed(1)}`,
+      fill:"none",stroke:COL.mut,"stroke-width":"1.1"}));
+    const at2=num(f.ang,0)+"\u00B0", ca=[];
+    [0.5,0.32,0.68,0.15,0.85].forEach(fr=>[R+15,R+27,R+39].forEach(r=>{
+      const an=a1+dl*fr;
+      ca.push({x:p.x+r*Math.cos(an), y:p.y+r*Math.sin(an)+4, pen:Math.abs(fr-0.5)*22+(r-R-15)*0.8});
+    }));
+    const ac2=best(ca,k=>ovl(box(at2,k.x,k.y,11.5))+pen(k.x,k.y,12)+k.pen);
+    put(at2,ac2.x,ac2.y,11.5,COL.mut,"600");
+  });
+
+  /* Maßlinien längs des Balkens */
+  const off=64;
+  const dim=(s1,s2,txt)=>{
+    if(s2-s1<0.05) return;
+    const p1=B(s1), p2=B(s2);
+    const q1={x:p1.x+zp.x*off, y:p1.y+zp.y*off}, q2={x:p2.x+zp.x*off, y:p2.y+zp.y*off};
+    add(el("line",{x1:p1.x,y1:p1.y,x2:q1.x,y2:q1.y,stroke:COL.dash,"stroke-width":"0.9","stroke-dasharray":"4 3"}));
+    add(el("line",{x1:p2.x,y1:p2.y,x2:q2.x,y2:q2.y,stroke:COL.dash,"stroke-width":"0.9","stroke-dasharray":"4 3"}));
+    add(el("line",{x1:q1.x,y1:q1.y,x2:q2.x,y2:q2.y,stroke:COL.mut,"stroke-width":"1"}));
+    [[q1,1],[q2,-1]].forEach(([p,d])=>{
+      add(el("polygon",{points:`${p.x},${p.y} ${(p.x+d*7*tp.x+3.2*zp.x).toFixed(1)},${(p.y+d*7*tp.y+3.2*zp.y).toFixed(1)} ${(p.x+d*7*tp.x-3.2*zp.x).toFixed(1)},${(p.y+d*7*tp.y-3.2*zp.y).toFixed(1)}`,fill:COL.mut}));
+    });
+    const dc=best([11,22,33].map(o=>({x:(q1.x+q2.x)/2+zp.x*o, y:(q1.y+q2.y)/2+zp.y*o+4, o})),
+      k=>ovl(box(txt,k.x,k.y,11.5))+k.o*0.6);
+    put(txt,dc.x,dc.y,11.5,COL.mut,"600");
+  };
+  const sA=m.sup[0].s, sB=m.sup[1].s;
+  dim(0,sA,num(sA,1)+" m");
+  dim(sA,sB,num(sB-sA,1)+" m");
+  dim(sB,m.L,num(m.L-sB,1)+" m");
+
+  /* Maßstab */
+  const nice=[1,2,5,10,20].reduce((b,v)=>Math.abs(v-m.L/4)<Math.abs(b-m.L/4)?v:b,1);
+  const lp=nice*sc;
+  if(lp>28 && lp<W*0.45){
+    const x2=W-24, x1=x2-lp, y=22;
+    add(el("line",{x1,y1:y,x2,y2:y,stroke:COL.mut,"stroke-width":"1.2"}));
+    add(el("line",{x1,y1:y-5,x2:x1,y2:y+5,stroke:COL.mut,"stroke-width":"1.2"}));
+    add(el("line",{x1:x2,y1:y-5,x2,y2:y+5,stroke:COL.mut,"stroke-width":"1.2"}));
+    add(el("text",{x:(x1+x2)/2,y:y-8,"text-anchor":"middle","font-size":"11.5",fill:COL.mut},nice+" m"));
+  }
+}
+
+/* ================= Diagramme ================= */
+function chart(sv,label,unit,color,m,data,key,flip){
+  const W=900,H=158,ML=64,MR=104,MT=20,MB=28;
+  sv.textContent=""; const add=n=>sv.appendChild(n);
+  const iw=W-ML-MR, ih=H-MT-MB, y0=MT+ih/2;
+  const vals=data.map(d=>d[key]);
+  let vmax=Math.max(...vals.map(Math.abs));
+  const flat=vmax<1e-6; if(flat) vmax=1;
+  const X=s=>ML+(s/m.L)*iw;
+  const Y=v=>y0-(flip?-1:1)*(v/vmax)*(ih/2-9);
+
+  add(el("rect",{x:ML,y:MT,width:iw,height:ih,fill:color,"fill-opacity":"0.03"}));
+  let d=`M ${X(data[0].s).toFixed(1)} ${y0.toFixed(1)}`;
+  data.forEach(p=>{ d+=` L ${X(p.s).toFixed(1)} ${Y(p[key]).toFixed(1)}`; });
+  d+=` L ${X(data[data.length-1].s).toFixed(1)} ${y0.toFixed(1)} Z`;
+  add(el("path",{d,fill:color,"fill-opacity":"0.18"}));
+  let c=`M ${X(data[0].s).toFixed(1)} ${Y(data[0][key]).toFixed(1)}`;
+  data.forEach(p=>{ c+=` L ${X(p.s).toFixed(1)} ${Y(p[key]).toFixed(1)}`; });
+  add(el("path",{d:c,fill:"none",stroke:color,"stroke-width":"1.9","stroke-linejoin":"round"}));
+  add(el("line",{x1:ML,y1:y0,x2:ML+iw,y2:y0,stroke:COL.ink,"stroke-width":"1.3"}));
+
+  /* Auflager-/Lastmarken */
+  m.sup.forEach(sp=>{
+    add(el("line",{x1:X(sp.s),y1:y0-5,x2:X(sp.s),y2:y0+5,stroke:COL.ink,"stroke-width":"1.6"}));
+    add(el("text",{x:X(sp.s),y:H-9,"text-anchor":"middle","font-size":"11","font-weight":"700",fill:COL.ink},sp.name));
+  });
+  add(el("text",{x:ML,y:H-9,"text-anchor":"middle","font-size":"10.5",fill:COL.mut},"0"));
+  add(el("text",{x:ML+iw,y:H-9,"text-anchor":"middle","font-size":"10.5",fill:COL.mut},num(m.L,1)+" m"));
+
+  /* Beschriftung */
+  add(el("text",{x:14,y:MT+16,"font-size":"15","font-weight":"800","font-style":"italic",fill:color},label));
+  add(el("text",{x:14,y:MT+32,"font-size":"10.5",fill:COL.mut},unit));
+
+  /* Extremwerte */
+  if(flat){
+    add(el("text",{x:ML+iw+10,y:y0+4,"font-size":"12","font-weight":"700",fill:COL.mut},label+" \u2261 0"));
+  }else{
+    let hi=data[0], lo=data[0];
+    data.forEach(p=>{ if(p[key]>hi[key]) hi=p; if(p[key]<lo[key]) lo=p; });
+    [[hi,"max"],[lo,"min"]].forEach(([p,tag])=>{
+      if(Math.abs(p[key])<1e-6*vmax) return;
+      add(el("circle",{cx:X(p.s),cy:Y(p[key]),r:3,fill:color}));
+      add(el("text",{x:ML+iw+10,y:(tag==="max"?MT+16:MT+ih-4),"font-size":"11.5","font-weight":"700",fill:color},
+        sgn(p[key],1)+" bei s="+num(p.s,1)+" m"));
+    });
+  }
+}
+
+/* ================= UI ================= */
+const g=id=>document.getElementById(id);
+const V=id=>parseFloat(g(id).value);
+const IDS=["alpha","span","ovlL","ovlR","nSup","sC","nF","F1mag","F1pos","F1ang",
+  "F2mag","F2pos","F2ang","F3mag","F3pos","F3ang","q","qs","qLen"];
+
+function state(){
+  const alpha=V("alpha"), span=V("span"), ovlL=V("ovlL"), ovlR=V("ovlR");
+  const L=ovlL+span+ovlR;
+  ["F1pos","F2pos","F3pos","sC"].forEach(id=>{ g(id).max=L.toFixed(1);
+    if(V(id)>L) g(id).value=L.toFixed(1); });
+  g("qLen").max=L.toFixed(1); if(V("qLen")>L) g("qLen").value=L.toFixed(1);
+  const qLen=V("qLen");
+  g("qs").max=Math.max(0,L-qLen).toFixed(1);
+  if(V("qs")>L-qLen) g("qs").value=Math.max(0,L-qLen).toFixed(1);
+  const sA=ovlL, sB=ovlL+span;
+  let sC=V("sC");
+  [sA,sB].forEach(sp=>{ if(Math.abs(sC-sp)<0.3) sC = sC>=sp ? sp+0.3 : sp-0.3; });
+  sC=Math.max(0,Math.min(L,sC));
+  return {alpha,span,ovlL,ovlR,L,nSup:V("nSup"),sC,
+    tA:g("tA").value, tB:g("tB").value, tC:g("tC").value,
+    nF:V("nF"), F:[V("F1mag"),V("F2mag"),V("F3mag")],
+    Fs:[V("F1pos"),V("F2pos"),V("F3pos")], Fa:[V("F1ang"),V("F2ang"),V("F3ang")],
+    q:V("q"), qs:V("qs"), qLen};
+}
+
+function update(){
+  const S=state(), m=model(S);
+  /* Anzeigen */
+  g("v_alpha").innerHTML=num(S.alpha,0)+" <em>°</em>";
+  g("v_span").innerHTML=num(S.span,1)+" <em>m</em>";
+  g("v_ovlL").innerHTML=num(S.ovlL,1)+" <em>m</em>";
+  g("v_ovlR").innerHTML=num(S.ovlR,1)+" <em>m</em>";
+  g("v_nSup").innerHTML=S.nSup+" <em>· Balken "+num(S.L,1)+" m</em>";
+  g("v_sC").innerHTML=num(S.sC,1)+" <em>m</em>";
+  g("v_nF").textContent=S.nF;
+  for(let i=1;i<=3;i++){
+    g("v_F"+i+"mag").innerHTML=num(V("F"+i+"mag"),0)+" <em>kN</em>";
+    g("v_F"+i+"pos").innerHTML=num(V("F"+i+"pos"),1)+" <em>m</em>";
+    g("v_F"+i+"ang").innerHTML=num(V("F"+i+"ang"),0)+" <em>°</em>";
+    g("fbox"+i).style.display = i<=S.nF ? "" : "none";
+  }
+  g("cBox").style.display = S.nSup>=3 ? "" : "none";
+  g("v_q").innerHTML = S.q<=0 ? "<em>ausgeschaltet</em>" : num(S.q,1)+" <em>kN/m</em>";
+  g("v_qs").innerHTML=num(S.qs,1)+" <em>m</em>";
+  g("v_qLen").innerHTML=num(S.qLen,1)+" <em>m</em>";
+
+  drawSystem(g("sys"),m,true);
+
+  const R=reactions(m);
+  const st=g("status"), sTxt=g("statusText");
+  const r=m.sup.reduce((a,s)=>a+(s.type==="fest"?2:1),0);
+  const flip=g("mDown").checked;
+
+  if(!R){
+    st.className="status bad"; st.querySelector(".ic").textContent="!";
+    sTxt.textContent="Kinematisch verschieblich – dieses System kann sich bewegen (Auflager reichen nicht aus).";
+    [["chN","N"],["chQ","Q"],["chM","M"]].forEach(([id])=>{ g(id).textContent=""; });
+    g("chips").textContent=""; g("ext").textContent=""; g("detNote").textContent="";
+    return;
+  }
+  const grid=sGrid(m);
+  const data=grid.map(s=>{const v=internal(m,R,s); return {s,N:v.N,Q:v.Q,M:v.M};});
+  chart(g("chN"),"N","Normalkraft [kN]",COL.green,m,data,"N",false);
+  chart(g("chQ"),"Q","Querkraft [kN]",COL.blue,m,data,"Q",false);
+  chart(g("chM"),"M","Biegemoment [kNm]"+(flip?" · Zugseite unten":""),COL.red,m,data,"M",flip);
+
+  if(r===3){ st.className="status ok"; st.querySelector(".ic").textContent="✓";
+    sTxt.textContent="Statisch bestimmt – die Auflagerkräfte folgen allein aus dem Gleichgewicht."; }
+  else { st.className="status warn"; st.querySelector(".ic").textContent="i";
+    sTxt.textContent=(r-3)+"-fach statisch unbestimmt – elastisch gerechnet (Stahlprofil)."; }
+  g("detNote").textContent = r===3
+    ? "Statisch bestimmt: die Werte hängen nur von Geometrie und Lasten ab."
+    : "Statisch unbestimmt: die Auflagerkräfte hängen zusätzlich von der Balkensteifigkeit ab (hier EI = 2,1·10⁴ kNm²).";
+
+  const chips=g("chips"); chips.textContent="";
+  R.forEach(rr=>{
+    if(rr.type==="fest"){
+      const c=document.createElement("span"); c.className="chip";
+      c.innerHTML=`<b>${rr.name} waagrecht</b>${sgn(rr.Rx,1)} kN`; chips.appendChild(c);
+    }
+    const c2=document.createElement("span"); c2.className="chip";
+    c2.innerHTML=`<b>${rr.name} senkrecht</b>${sgn(rr.Ry,1)} kN`; chips.appendChild(c2);
+  });
+  const ext=g("ext"); ext.textContent="";
+  [["N","kN",COL.green],["Q","kN",COL.blue],["M","kNm",COL.red]].forEach(([k,u,c])=>{
+    let best=data[0];
+    data.forEach(p=>{ if(Math.abs(p[k])>Math.abs(best[k])) best=p; });
+    const s=document.createElement("span"); s.className="chip";
+    s.innerHTML=`<b style="color:${c}">|${k}|<sub>max</sub></b>${num(Math.abs(best[k]),1)} ${u} <em style="color:var(--mut);font-style:normal">bei s = ${num(best.s,1)} m</em>`;
+    ext.appendChild(s);
+  });
+}
+
+/* ================= A4-Ausdruck ================= */
+function buildSheet(mode){
+  /* mode: "sol" = Lösung · "stu" = Schülerversion · "mom" = nur Momentenverlauf fehlt */
+  const S=state(), m=model(S), R=reactions(m), flip=g("mDown").checked;
+  const show=k => mode==="sol" || (mode==="mom" && k!=="M");
+  const out=[];
+  const el=(t,a,x)=>({t,a,x});                 // sammelt statt SVG-Knoten zu erzeugen
+  const add=d=>{ out.push(d); return d; };
+  const W=794, ML=104, MR=752, iw=MR-ML;
+  const beamTop=112, beamH=178;
+  const bands=[{k:"N",y:326,h:192,lab:"Normalkraft N in kN",col:COL.green},
+               {k:"Q",y:536,h:192,lab:"Querkraft Q in kN",col:COL.blue},
+               {k:"M",y:746,h:192,lab:"Moment M in kNm",col:COL.red}];
+  const bot=bands[2].y+bands[2].h;
+
+  /* Kopf */
+  add(el("text",{x:44,y:52,"font-size":"21","font-weight":"800",fill:COL.ink},
+    mode==="sol" ? "Balken – Lösung"
+    : mode==="mom" ? "Balken – Schülerversion: Momentenverlauf zeichnen"
+    : "Balken – Schülerversion"));
+  add(el("text",{x:44,y:74,"font-size":"11.5",fill:COL.mut},
+    `Neigung α = ${num(S.alpha,0)}°  ·  Balkenlänge ${num(S.L,1)} m  ·  Auflagerabstand A–B = ${num(S.span,1)} m`
+    +(m.q>0?`  ·  q = ${num(m.q,1)} kN/m von x = ${num(m.q0,1)} m bis ${num(m.q1,1)} m`:"  ·  ohne Streckenlast")));
+  add(el("text",{x:44,y:90,"font-size":"11.5",fill:COL.mut},
+    m.F.map((f,i)=>`F${SUBS[i]} = ${num(f.mag,0)} kN bei x = ${num(f.s,1)} m (${num(f.ang,0)}° zum Balken)`).join("   ·   ")));
+  if(!R){
+    add(el("text",{x:44,y:150,"font-size":"14","font-weight":"700",fill:COL.reddk},
+      "Dieses System ist kinematisch verschieblich – kein Ausdruck möglich."));
+    return out;
+  }
+
+  /* gemeinsame x-Abbildung: waagrechte Projektion (für sehr steile Balken gestaucht) */
+  const cE=Math.max(Math.cos(m.a),0.30), sE=Math.sin(m.a);
+  let sc=iw/(m.L*cE);
+  if(sE>0.001) sc=Math.min(sc,(beamH-100)/(m.L*sE));
+  const X=x=>ML+x*cE*sc;
+  const yb=beamTop+beamH-30;
+  const BY=x=>yb-x*sE*sc;
+  const xEnd=X(m.L);
+
+  /* Beschriftungen kollisionsfrei setzen */
+  const placed=[];
+  const sbox=(t,x,y,f)=>{const w=t.length*f*0.58,h=f*1.05; return {x0:x-w/2,y0:y-h*0.78,x1:x+w/2,y1:y+h*0.28};};
+  const sovl=b=>{let a=0; for(const p of placed){
+    const ox=Math.min(p.x1,b.x1)-Math.max(p.x0,b.x0), oy=Math.min(p.y1,b.y1)-Math.max(p.y0,b.y0);
+    if(ox>0&&oy>0) a+=ox*oy;} return a;};
+  const sben=(x,y)=>{const x1=X(0),y1=BY(0),x2=xEnd,y2=BY(m.L);
+    const dx=x2-x1, dy=y2-y1, l2=dx*dx+dy*dy||1;
+    let t=((x-x1)*dx+(y-y1)*dy)/l2; t=Math.max(0,Math.min(1,t));
+    const d=Math.hypot(x-(x1+t*dx), y-(y1+t*dy)); return d<12?(12-d)*55:0;};
+  const sbest=(c,f)=>{let bi=0,bs=Infinity; c.forEach((k,i)=>{const v=f(k); if(v<bs-1e-9){bs=v;bi=i;}}); return c[bi];};
+  const sput=(t,x,y,f,fill,w,it)=>{placed.push(sbox(t,x,y,f));
+    const a={x:x.toFixed(1),y:y.toFixed(1),"text-anchor":"middle","font-size":f,"font-weight":w||"700",
+      fill:fill,stroke:"#fff","stroke-width":"3","paint-order":"stroke","stroke-linejoin":"round"};
+    if(it) a["font-style"]="italic";
+    add(el("text",a,t));};
+  placed.push({x0:0,y0:0,x1:794,y1:98});          // Kopfzeilen freihalten
+  bands.forEach(b=>{const y0=b.y+b.h/2;           // Achsenbeschriftung "x in m" freihalten
+    placed.push({x0:xEnd+2,y0:y0+8,x1:xEnd+44,y1:y0+24});});
+
+  /* Abschnittsgrenzen */
+  const cuts=[0,m.L];
+  m.sup.forEach(sp=>cuts.push(sp.s));
+  m.F.forEach(f=>cuts.push(f.s));
+  if(m.q>0){ cuts.push(m.q0); cuts.push(m.q1); }
+  const uc=[...new Set(cuts.map(v=>Math.round(v*1000)/1000))].sort((a,b)=>a-b)
+            .filter(v=>v>=0&&v<=m.L);
+  uc.forEach(x=>add(el("line",{x1:X(x).toFixed(1),y1:beamTop-4,x2:X(x).toFixed(1),y2:bot+6,
+    stroke:COL.dash,"stroke-width":"0.9","stroke-dasharray":"5 4"})));
+
+  /* ---- Balken ---- */
+  if(m.q>0 && m.q1>m.q0+1e-6){
+    const h=12+26*(m.q/12), a0={x:X(m.q0),y:BY(m.q0)}, a1={x:X(m.q1),y:BY(m.q1)};
+    add(el("polygon",{points:`${a0.x},${a0.y} ${a1.x},${a1.y} ${a1.x},${a1.y-h} ${a0.x},${a0.y-h}`,
+      fill:COL.q,"fill-opacity":"0.10"}));
+    add(el("line",{x1:a0.x,y1:a0.y-h,x2:a1.x,y2:a1.y-h,stroke:COL.q,"stroke-width":"1.5"}));
+    const n=Math.max(2,Math.min(10,Math.round((m.q1-m.q0)/m.L*10)+2));
+    for(let i=0;i<=n;i++){ const x=m.q0+(m.q1-m.q0)*i/n, px=X(x), py=BY(x);
+      add(el("line",{x1:px,y1:py-h,x2:px,y2:py-4,stroke:COL.q,"stroke-width":"1.2"}));
+      add(el("polygon",{points:`${px},${py} ${px-3},${py-6.5} ${px+3},${py-6.5}`,fill:COL.q}));
+    }
+    const mx=X((m.q0+m.q1)/2), my=BY((m.q0+m.q1)/2), qt="q = "+num(m.q,1)+" kN/m";
+    const qc=sbest([0,-14,-27].map(d=>({x:mx,y:my-h-8+d,d})),
+      k=>sovl(sbox(qt,k.x,k.y,11.5))+sben(k.x,k.y)+Math.abs(k.d)*0.7);
+    sput(qt,qc.x,qc.y,11.5,COL.q,"700");
+  }
+  add(el("line",{x1:X(0),y1:BY(0),x2:xEnd,y2:BY(m.L),stroke:COL.ink,"stroke-width":"4.5","stroke-linecap":"round"}));
+  m.sup.forEach(sp=>{
+    const px=X(sp.s), py=BY(sp.s), roller=sp.type==="los";
+    add(el("polygon",{points:`${px},${py} ${px-10},${py+17} ${px+10},${py+17}`,fill:"#fff",stroke:COL.ink,"stroke-width":"1.4"}));
+    if(roller){
+      add(el("circle",{cx:px-5,cy:py+20,r:3,fill:"#fff",stroke:COL.ink,"stroke-width":"1.1"}));
+      add(el("circle",{cx:px+5,cy:py+20,r:3,fill:"#fff",stroke:COL.ink,"stroke-width":"1.1"}));
+    }
+    const y0=py+(roller?23:17);
+    add(el("line",{x1:px-14,y1:y0,x2:px+14,y2:y0,stroke:COL.ink,"stroke-width":"1.3"}));
+    for(let i=-13;i<=11;i+=5)
+      add(el("line",{x1:px+i,y1:y0+7,x2:px+i+5,y2:y0,stroke:COL.hatch,"stroke-width":"0.9"}));
+    const nc=sbest([[-1,0.7],[1,0.7],[-1,0],[1,0],[-1,-0.5],[1,-0.5]].flatMap(d=>[24,34,44].map(Rr=>{
+      const l=Math.hypot(d[0],d[1]); return {x:px+d[0]/l*Rr, y:py+d[1]/l*Rr+4, Rr};})),
+      k=>sovl(sbox(sp.name,k.x,k.y,13))+sben(k.x,k.y)+(k.Rr-24)*0.8);
+    sput(sp.name,nc.x,nc.y,13,COL.ink);
+  });
+  const tnl=Math.hypot(cE,sE)||1, tn={x:cE/tnl, y:-sE/tnl};
+  const zn={x:-tn.y, y:tn.x};                    // "unten" quer zum gezeichneten Balken
+  m.F.forEach((f,i)=>{
+    const px=X(f.s), py=BY(f.s), len=30+34*(f.mag/150);
+    const th=f.ang*Math.PI/180;
+    const ux=Math.cos(th)*tn.x+Math.sin(th)*zn.x, uy=Math.cos(th)*tn.y+Math.sin(th)*zn.y;
+    const sx=px-ux*len, sy=py-uy*len;
+    add(el("line",{x1:sx.toFixed(1),y1:sy.toFixed(1),x2:(px-ux*8).toFixed(1),y2:(py-uy*8).toFixed(1),
+      stroke:COL.red,"stroke-width":"2.2","stroke-linecap":"round"}));
+    add(el("polygon",{points:`${px},${py} ${(px-ux*10-uy*4.5).toFixed(1)},${(py-uy*10+ux*4.5).toFixed(1)} ${(px-ux*10+uy*4.5).toFixed(1)},${(py-uy*10-ux*4.5).toFixed(1)}`,fill:COL.red}));
+    const ft="F"+SUBS[i], vt=num(f.mag,0)+" kN", cnd=[];
+    [0,14,28,44].forEach(bk=>[0,1,-1,2,-2].forEach(sd=>{
+      cnd.push({x:sx-ux*bk-uy*sd*19+(ux>=0?-17:17), y:sy-uy*bk+ux*sd*19-5, pen:bk*0.7+Math.abs(sd)*13});
+    }));
+    const fc=sbest(cnd,k=>sovl(sbox(ft,k.x,k.y,13))+sovl(sbox(vt,k.x,k.y+13,10.5))
+      +sben(k.x,k.y)+sben(k.x,k.y+13)+k.pen);
+    sput(ft,fc.x,fc.y,13,COL.red,"700",true);
+    sput(vt,fc.x,fc.y+13,10.5,COL.reddk,"600");
+  });
+
+  /* ---- Diagramme ---- */
+  const grid=sGrid(m), data=grid.map(x=>{const v=internal(m,R,x); return {s:x,N:v.N,Q:v.Q,M:v.M};});
+  bands.forEach(b=>{
+    const y0=b.y+b.h/2, fl=(b.k==="M")&&flip;
+    let vmax=Math.max(...data.map(d=>Math.abs(d[b.k])));
+    const flat=vmax<1e-6; if(flat) vmax=1;
+    const Y=v=>y0-(fl?-1:1)*(v/vmax)*(b.h/2-26);
+
+    const withGraphs=show(b.k);
+    if(withGraphs && !flat){
+      let d=`M ${X(0).toFixed(1)} ${y0.toFixed(1)}`;
+      data.forEach(p=>{ d+=` L ${X(p.s).toFixed(1)} ${Y(p[b.k]).toFixed(1)}`; });
+      d+=` L ${xEnd.toFixed(1)} ${y0.toFixed(1)} Z`;
+      add(el("path",{d,fill:b.col,"fill-opacity":"0.16"}));
+      let c=`M ${X(data[0].s).toFixed(1)} ${Y(data[0][b.k]).toFixed(1)}`;
+      data.forEach(p=>{ c+=` L ${X(p.s).toFixed(1)} ${Y(p[b.k]).toFixed(1)}`; });
+      add(el("path",{d:c,fill:"none",stroke:b.col,"stroke-width":"1.9","stroke-linejoin":"round"}));
+      let hi=data[0], lo=data[0];
+      data.forEach(p=>{ if(p[b.k]>hi[b.k]) hi=p; if(p[b.k]<lo[b.k]) lo=p; });
+      [hi,lo].forEach(p=>{
+        if(Math.abs(p[b.k])<1e-6*vmax) return;
+        const vx=X(p.s), vy=Y(p[b.k]), tx=sgn(p[b.k],1);
+        const up=(p[b.k]>=0)!==fl;
+        add(el("circle",{cx:vx,cy:vy,r:2.8,fill:b.col}));
+        const cd=[];
+        [0,-22,22].forEach(dx=>[0,12].forEach(dd=>{
+          cd.push({x:Math.min(Math.max(vx+dx,ML+14),xEnd-14), y:vy+(up?-9-dd:15+dd),
+                   pen:Math.abs(dx)*0.5+dd*0.6});
+        }));
+        const vc=sbest(cd,k=>sovl(sbox(tx,k.x,k.y,10.5))+k.pen);
+        sput(tx,vc.x,vc.y,10.5,b.col,"700");
+      });
+    }
+    if(withGraphs && flat)
+      add(el("text",{x:X(m.L/2),y:y0-8,"text-anchor":"middle","font-size":"12","font-weight":"700",fill:COL.mut},
+        b.k+" \u2261 0"));
+
+    /* x-Achse */
+    add(el("line",{x1:ML-18,y1:y0,x2:xEnd+34,y2:y0,stroke:COL.ink,"stroke-width":"1.2"}));
+    add(el("polygon",{points:`${(xEnd+42).toFixed(1)},${y0} ${(xEnd+34).toFixed(1)},${(y0-3.4).toFixed(1)} ${(xEnd+34).toFixed(1)},${(y0+3.4).toFixed(1)}`,fill:COL.ink}));
+    add(el("text",{x:(xEnd+40).toFixed(1),y:y0+20,"text-anchor":"end","font-size":"11","font-style":"italic",fill:COL.ink},"x in m"));
+    /* y-Achse – beim Moment zeigt der Pfeil nach unten (Zugseite) */
+    const ax=ML-18, dn=fl;
+    const yA=dn ? b.y+4 : b.y+b.h-4, yB=dn ? b.y+b.h-8 : b.y+8;
+    add(el("line",{x1:ax,y1:yA,x2:ax,y2:yB,stroke:COL.ink,"stroke-width":"1.2"}));
+    const tip=dn ? b.y+b.h : b.y;
+    add(el("polygon",{points:`${ax},${tip} ${ax-3.4},${yB} ${ax+3.4},${yB}`,fill:COL.ink}));
+    const yl=el("text",{x:0,y:0,"text-anchor":"middle","font-size":"11.5","font-weight":"700",fill:b.col,
+      transform:`translate(${ML-34},${y0}) rotate(-90)`},b.lab);
+    add(yl);
+    /* Marken der Abschnittsgrenzen auf der x-Achse */
+    uc.forEach(x=>add(el("line",{x1:X(x),y1:y0-4,x2:X(x),y2:y0+4,stroke:COL.ink,"stroke-width":"1.2"})));
+  });
+  /* x-Werte unter dem letzten Diagramm (zu enge Werte werden ausgelassen) */
+  let lastX=-1e9;
+  uc.forEach(x=>{
+    const px=X(x);
+    if(px-lastX<26 && x<m.L-1e-6) return;
+    if(x>m.L-1e-6 && px-lastX<26){                 // Endwert hat Vorrang
+      for(let i=out.length-1;i>=0;i--)
+        if(out[i].t==="text" && out[i].a.y===bot+22){ out.splice(i,1); break; }
+    }
+    lastX=px;
+    add(el("text",{x:px,y:bot+22,"text-anchor":"middle","font-size":"10",fill:COL.mut},num(x,1)));
+  });
+  /* Kästchen Auflagerkräfte */
+  const bx0=44, bx1=750, by0=bot+42, by1=by0+92;
+  add(el("rect",{x:bx0,y:by0,width:bx1-bx0,height:by1-by0,rx:8,fill:"none",
+    stroke:COL.line,"stroke-width":"1.4"}));
+  add(el("text",{x:bx0+14,y:by0+21,"font-size":"12","font-weight":"800",fill:COL.ink},"Auflagerkräfte"));
+  const ent=[];
+  R.forEach(rr=>{
+    if(rr.type==="fest") ent.push({t:rr.name+" waagrecht", v:rr.Rx});
+    ent.push({t:rr.name+" senkrecht", v:rr.Ry});
+  });
+  const cols=3, cw=(bx1-bx0-28)/cols;
+  ent.forEach((e,i)=>{
+    const cx=bx0+14+(i%cols)*cw, cy=by0+45+Math.floor(i/cols)*30;
+    add(el("text",{x:cx,y:cy,"font-size":"11","font-weight":"600",fill:COL.mut},e.t+" ="));
+    if(mode==="sol")
+      add(el("text",{x:cx+96,y:cy,"font-size":"12","font-weight":"700",fill:COL.ink},sgn(e.v,1)+" kN"));
+    else{
+      add(el("line",{x1:cx+96,y1:cy+2,x2:cx+156,y2:cy+2,stroke:COL.mut,"stroke-width":"0.9"}));
+      add(el("text",{x:cx+162,y:cy,"font-size":"11",fill:COL.mut},"kN"));
+    }
+  });
+  add(el("text",{x:44,y:1098,"font-size":"9.5",fill:COL.mut},
+    "Längen entlang der Balkenachse · N positiv = Zug"+(flip?" · Moment auf der Zugseite aufgetragen":"")));
+  return out;
+}
+
+/* Primitive → SVG (für den Druck) */
+function renderSheetSVG(mode){
+  const out=buildSheet(mode), sv=g("sheet");
+  sv.textContent="";
+  out.forEach(d=>sv.appendChild(el(d.t,d.a,d.x)));
+  return out;
+}
+function printSheet(mode){
+  renderSheetSVG(mode);
+  document.body.classList.add("psheet");
+  window.print();
+}
+
+/* Primitive → PowerPoint (echte, bearbeitbare Formen) */
+const PX2IN=8.27/794;
+function pptxRender(out,pptx,slide){
+  const K=PX2IN, ST=pptx.ShapeType;
+  const hex=c=>{
+    let v=String(c||"#000000").replace("#","").toUpperCase();
+    if(v.length===3) v=v[0]+v[0]+v[1]+v[1]+v[2]+v[2];
+    return /^[0-9A-F]{6}$/.test(v) ? v : "000000";
+  };
+  const poly=(pts,close,o)=>{
+    const xs=pts.map(p=>p[0]), ys=pts.map(p=>p[1]);
+    const x0=Math.min(...xs), y0=Math.min(...ys);
+    const w=Math.max(...xs)-x0, h=Math.max(...ys)-y0;
+    const P=pts.map(p=>({x:+((p[0]-x0)*K).toFixed(4), y:+((p[1]-y0)*K).toFixed(4)}));
+    if(close) P.push({close:true});
+    slide.addShape(ST.custGeom, Object.assign({x:+(x0*K).toFixed(4), y:+(y0*K).toFixed(4),
+      w:Math.max(w*K,0.004), h:Math.max(h*K,0.004), points:P}, o));
+  };
+  out.forEach(d=>{
+    const a=d.a;
+    if(d.t==="line"){
+      poly([[+a.x1,+a.y1],[+a.x2,+a.y2]], false, {fill:{type:"none"},
+        line:{color:hex(a.stroke), width:(+a["stroke-width"]||1)*0.75,
+              dashType:a["stroke-dasharray"]?"dash":"solid"}});
+    }else if(d.t==="polygon"){
+      const pts=a.points.trim().split(/\s+/).map(t=>t.split(",").map(Number));
+      poly(pts,true,{fill:{color:hex(a.fill)}, line:{color:hex(a.fill), width:0.5}});
+    }else if(d.t==="path"){
+      const pts=[]; a.d.trim().split(/(?=[ML])/).forEach(c=>{
+        const v=c.replace(/[MLZ]/g,"").trim().split(/\s+/).map(Number);
+        if(v.length>=2 && !isNaN(v[0]) && !isNaN(v[1])) pts.push([v[0],v[1]]);
+      });
+      if(pts.length<2) return;
+      const o={};
+      if(a.fill && a.fill!=="none")
+        o.fill={color:hex(a.fill), transparency:Math.round((1-(+a["fill-opacity"]||1))*100)};
+      else o.fill={type:"none"};
+      if(a.stroke && a.stroke!=="none")
+        o.line={color:hex(a.stroke), width:(+a["stroke-width"]||1)*0.75};
+      else o.line={type:"none"};
+      poly(pts, /Z\s*$/.test(a.d), o);
+    }else if(d.t==="circle"){
+      const r=+a.r;
+      slide.addShape(ST.ellipse,{x:(+a.cx-r)*K, y:(+a.cy-r)*K, w:2*r*K, h:2*r*K,
+        fill:{color:hex(a.fill||"#1E293B")}, line:{color:hex(a.stroke||a.fill||"#1E293B"), width:0.5}});
+    }else if(d.t==="rect"){
+      slide.addShape(ST.rect,{x:(+a.x)*K, y:(+a.y)*K, w:(+a.width)*K, h:(+a.height)*K,
+        fill:{type:"none"}, line:{color:hex(a.stroke||"#94A3B8"), width:1}});
+    }else if(d.t==="text"){
+      const fs=+a["font-size"]||12, txt=String(d.x==null?"":d.x);
+      const w=Math.max(0.4, txt.length*fs*0.62*K), h=fs*1.6*K;
+      const an=a["text-anchor"]||"start";
+      const opt={fontSize:+(fs*0.75).toFixed(1), color:hex(a.fill),
+        bold:(+a["font-weight"]||400)>=600, italic:a["font-style"]==="italic",
+        margin:0, valign:"middle", fontFace:"Segoe UI", w, h,
+        align:an==="middle"?"center":(an==="end"?"right":"left")};
+      const rt=a.transform && /rotate\(-90\)/.test(a.transform);
+      if(rt){
+        const t3=/translate\(([-\d.]+)[ ,]+([-\d.]+)\)/.exec(a.transform);
+        const cx=t3?+t3[1]:+a.x, cy=t3?+t3[2]:+a.y;
+        opt.x=cx*K-w/2; opt.y=cy*K-h/2; opt.rotate=270; opt.align="center";
+      }else{
+        let x=+a.x;
+        if(an==="middle") x-=w/(2*K); else if(an==="end") x-=w/K;
+        opt.x=x*K; opt.y=(+a.y-fs*1.05)*K;
+      }
+      slide.addText(txt,opt);
+    }
+  });
+}
+function loadPptx(){
+  return new Promise((res,rej)=>{
+    if(window.PptxGenJS) return res(window.PptxGenJS);
+    const sc=document.createElement("script");
+    sc.src="../vendor/pptxgen.bundle.js";
+    sc.onload=()=>res(window.PptxGenJS);
+    sc.onerror=()=>rej(new Error("offline"));
+    document.head.appendChild(sc);
+  });
+}
+async function exportPptx(mode,btn){
+  const lab=btn.textContent;
+  btn.textContent="erzeuge …"; btn.disabled=true;
+  try{
+    const P=await loadPptx();
+    const pptx=new P();
+    pptx.defineLayout({name:"A4",width:8.27,height:11.69});
+    pptx.layout="A4";
+    const slide=pptx.addSlide();
+    pptxRender(buildSheet(mode),pptx,slide);
+    const nm={sol:"Ausdruck-Loesung",stu:"Schuelerversion",mom:"Schuelerversion-Momente-zeichnen"}[mode];
+    await pptx.writeFile({fileName:"Balken_"+nm+".pptx"});
+  }catch(e){
+    alert("Der PowerPoint-Export hat nicht geklappt. Der normale Ausdruck funktioniert aber weiterhin.");
+  }
+  btn.textContent=lab; btn.disabled=false;
+}
+window.buildSheet=buildSheet; window.pptxRender=pptxRender;
+window.addEventListener("afterprint",()=>document.body.classList.remove("psheet"));
+
+IDS.forEach(id=>g(id).addEventListener("input",update));
+["tA","tB","tC"].forEach(id=>g(id).addEventListener("change",update));
+g("mDown").addEventListener("change",update);
+g("reset").addEventListener("click",()=>{
+  IDS.forEach(id=>{ if(DEF[id]!==undefined) g(id).value=DEF[id]; });
+  g("tA").value="fest"; g("tB").value="los"; g("tC").value="los";
+  update();
+});
+g("print").addEventListener("click",()=>window.print());
+g("pSol").addEventListener("click",()=>printSheet("sol"));
+g("pStu").addEventListener("click",()=>printSheet("stu"));
+g("pMom").addEventListener("click",()=>printSheet("mom"));
+g("xSol").addEventListener("click",e=>exportPptx("sol",e.target));
+g("xStu").addEventListener("click",e=>exportPptx("stu",e.target));
+g("xMom").addEventListener("click",e=>exportPptx("mom",e.target));
+update();
+</script>
+</body>
+</html>

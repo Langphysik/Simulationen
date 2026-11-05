@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fachwerk-Rechner · 11 Stäbe</title>
+<style>
+  :root{
+    --ink:#1E293B; --mut:#64748B; --line:#E2E8F0; --card:#F1F5F9; --card2:#F8FAFC;
+    --red:#E24B4A; --reddk:#C0392B; --green:#137B5E; --greenbg:#E7F3EE; --redbg:#FBEAE7;
+    --zero:#8A94A6; --zerobg:#EEF1F5;
+    --blue:#2563EB; --bluedk:#1D4ED8;
+    --bg:#FFFFFF; --wall:#475569; --hatch:#94A3B8;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{font-family:"Segoe UI",system-ui,-apple-system,Roboto,Helvetica,Arial,sans-serif;
+    color:var(--ink); background:#EEF1F5; line-height:1.45; -webkit-font-smoothing:antialiased}
+  .wrap{max-width:1180px; margin:0 auto; padding:28px 20px 56px}
+  .eyebrow{font-size:12px; font-weight:700; letter-spacing:2px; color:var(--red); text-transform:uppercase}
+  h1{font-size:32px; font-weight:800; margin:4px 0 6px; letter-spacing:-.01em}
+  .sub{color:var(--mut); font-size:15px; max-width:72ch; margin:0}
+  .legend{display:flex; gap:10px; margin-top:12px; flex-wrap:wrap}
+  .pill{display:inline-flex; align-items:center; gap:7px; font-size:12.5px; font-weight:600; padding:5px 11px; border-radius:999px}
+  .pill.zug{background:var(--greenbg); color:var(--green)}
+  .pill.druck{background:var(--redbg); color:var(--red)}
+  .pill.null{background:var(--zerobg); color:var(--zero)}
+  .dot{width:11px; height:4px; border-radius:2px}
+  .dot.g{background:var(--green)} .dot.r{background:var(--red)} .dot.z{background:var(--zero)}
+
+  .grid{display:grid; grid-template-columns:340px 1fr; gap:18px; align-items:start}
+  .panel{background:var(--bg); border-radius:14px; padding:18px 18px 8px; box-shadow:0 6px 20px rgba(30,41,59,.08)}
+  .panel h2{font-size:13px; font-weight:700; letter-spacing:1.4px; text-transform:uppercase; color:var(--mut); margin:2px 0 14px}
+  .ctrl{margin-bottom:15px}
+  .ctrl .row{display:flex; justify-content:space-between; align-items:baseline; margin-bottom:5px}
+  .ctrl .name{font-size:14px; font-weight:600}
+  .ctrl .name small{color:var(--mut); font-weight:500}
+  .ctrl .val{font-size:14px; font-weight:700; font-variant-numeric:tabular-nums}
+  .ctrl .val em{color:var(--mut); font-weight:500; font-style:normal; font-size:12.5px}
+  input[type=range]{width:100%; accent-color:var(--blue); height:22px; cursor:pointer; margin:0}
+  input[type=range]:focus-visible{outline:2px solid var(--bluedk); outline-offset:3px; border-radius:6px}
+  .toggle{display:flex; align-items:center; gap:9px; font-size:13.5px; font-weight:600; padding:2px 0 12px; cursor:pointer; user-select:none}
+  .toggle input{width:17px; height:17px; accent-color:var(--blue); cursor:pointer; flex:none}
+  .actions{display:flex; gap:9px; padding:4px 0 12px; flex-wrap:wrap}
+  button.btn{font:inherit; font-size:13.5px; font-weight:600; color:var(--ink); background:var(--card);
+    border:1px solid var(--line); border-radius:9px; padding:9px 14px; cursor:pointer}
+  button.btn:hover{background:#E4EAF1}
+  button.btn:focus-visible{outline:2px solid var(--bluedk); outline-offset:2px}
+
+  .stage{background:var(--bg); border-radius:14px; padding:14px; box-shadow:0 6px 20px rgba(30,41,59,.08)}
+  svg#draw{display:block; width:100%; height:auto}
+  .status{display:flex; align-items:center; gap:9px; margin-top:6px; padding:9px 12px; border-radius:9px; font-size:13.5px; font-weight:600}
+  .status.ok{background:var(--greenbg); color:var(--green)}
+  .status.bad{background:var(--redbg); color:var(--reddk)}
+
+  .results{margin-top:18px; background:var(--bg); border-radius:14px; padding:18px; box-shadow:0 6px 20px rgba(30,41,59,.08)}
+  .results h2{font-size:16px; font-weight:800; margin:0 0 4px}
+  .results p.note{color:var(--mut); font-size:13px; margin:0 0 14px}
+  .reacts{display:flex; gap:9px; flex-wrap:wrap; margin-bottom:14px}
+  .chip{background:var(--card); border:1px solid var(--line); border-radius:9px; padding:7px 12px;
+    font-size:13px; font-weight:600; font-variant-numeric:tabular-nums}
+  .chip b{color:var(--mut); font-weight:600; margin-right:6px}
+  table{width:100%; border-collapse:collapse; font-variant-numeric:tabular-nums}
+  thead th{background:var(--ink); color:#fff; font-size:12.5px; font-weight:700; text-align:left; padding:9px 12px}
+  thead th:first-child{border-radius:8px 0 0 0} thead th:last-child{border-radius:0 8px 0 0}
+  tbody td{padding:8px 12px; font-size:13.5px; border-bottom:1px solid var(--line)}
+  tbody tr:nth-child(even){background:var(--card2)}
+  .tablewrap{overflow-x:auto}
+  .tablewrap table{min-width:560px}
+  td.num{text-align:right}
+  td.art{font-weight:700}
+  .badge{display:inline-flex; align-items:center; justify-content:center; min-width:24px; height:22px; padding:0 5px;
+    border-radius:999px; background:var(--card); border:1px solid var(--line); font-size:12px; font-weight:700}
+
+  .sk-head{display:flex; justify-content:space-between; align-items:flex-start; gap:16px; flex-wrap:wrap}
+  .sk-actions{display:flex; gap:9px; flex-wrap:wrap}
+  svg#sketch{display:block; width:100%; height:auto; max-width:900px; margin:2px auto 0}
+  footer.foot{color:var(--mut); font-size:12.5px; margin-top:20px; text-align:center}
+
+  @media (max-width:900px){ .grid{grid-template-columns:1fr} h1{font-size:26px} }
+  @media print{
+    body{background:#fff}
+    .wrap{max-width:none; padding:0}
+    .no-print{display:none !important}
+    .sketch-card{margin:0; padding:0; border-radius:0; box-shadow:none !important}
+    svg#sketch{max-width:none}
+    @page{margin:16mm; size:landscape}
+  }
+</style>
+<meta name="theme-color" content="#1E293B">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Simulationen">
+<link rel="manifest" href="../manifest.json">
+<link rel="icon" href="../icons/icon-192.png">
+<link rel="apple-touch-icon" href="../icons/icon-180.png">
+<link rel="stylesheet" href="../app/shell.css">
+<script src="../app/shell.js" defer></script>
+</head>
+<body class="stick-stage">
+<nav class="appbar" aria-label="App"><a href="../index.html" data-back><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>Übersicht</a><span>Fachwerk · Hallenbinder</span></nav>
+<div class="wrap">
+  <header class="no-print">
+    <div class="eyebrow">Statik · Technische Mechanik</div>
+    <h1>Fachwerk-Rechner · 11 Stäbe</h1>
+    <p class="sub">Symmetrisches Fachwerk mit Einzellast F an der Spitze. Zieh an den Reglern — die Zeichnung passt sich maßstäblich an und alle elf Stabkräfte werden live berechnet.</p>
+    <div class="legend">
+      <span class="pill zug"><span class="dot g"></span>Zug (+)</span>
+      <span class="pill druck"><span class="dot r"></span>Druck (−)</span>
+      <span class="pill null"><span class="dot z"></span>Nullstab</span>
+    </div>
+  </header>
+
+  <div class="grid no-print">
+    <section class="panel">
+      <h2>Regler</h2>
+      <div class="ctrl">
+        <div class="row"><span class="name">Auflagerabstand <small>· A–B</small></span><span class="val" id="v_L"></span></div>
+        <input type="range" id="L" min="8" max="40" step="0.5" value="20">
+      </div>
+      <div class="ctrl">
+        <div class="row"><span class="name">Kraft F</span><span class="val" id="v_F"></span></div>
+        <input type="range" id="F" min="10" max="1000" step="10" value="200">
+      </div>
+      <div class="ctrl">
+        <div class="row"><span class="name">Winkel α <small>· Stäbe 8 &amp; 10</small></span><span class="val" id="v_al"></span></div>
+        <input type="range" id="al" min="15" max="40" step="1" value="30">
+      </div>
+      <div class="ctrl">
+        <div class="row"><span class="name">Winkel β <small>· Obergurt</small></span><span class="val" id="v_be"></span></div>
+        <input type="range" id="be" min="35" max="70" step="1" value="45">
+      </div>
+      <div class="ctrl">
+        <div class="row"><span class="name">Lage der unteren Knoten</span><span class="val" id="v_k"></span></div>
+        <input type="range" id="k" min="20" max="48" step="1" value="36">
+      </div>
+      <label class="toggle"><input type="checkbox" id="showAngles" checked>Winkel α und β anzeigen</label>
+      <div class="actions">
+        <button class="btn" id="reset" type="button">Auf Standardwerte zurücksetzen</button>
+      </div>
+    </section>
+
+    <section class="stage">
+      <svg id="draw" viewBox="0 0 760 480" role="img" aria-label="Maßstäbliche Fachwerkzeichnung mit Stabkräften"></svg>
+      <div class="status ok" id="status"><span class="ic">✓</span><span id="statusText">gültiges Fachwerk</span></div>
+    </section>
+  </div>
+
+  <section class="results no-print">
+    <h2>Stabkräfte</h2>
+    <p class="note">Vorzeichen: <b style="color:var(--green)">+ Zug</b>, <b style="color:var(--red)">− Druck</b>. Die Stäbe 5 und 6 sind <b>Nullstäbe</b>: an den Knoten I und V treffen zwei fluchtende Stäbe (7/1 bzw. 11/4) und ein dritter unbelasteter Stab zusammen.</p>
+    <div class="reacts" id="reacts"></div>
+    <div class="tablewrap">
+      <table>
+        <thead><tr>
+          <th>Stab</th><th>Verbindung</th>
+          <th style="text-align:right">Länge [m]</th>
+          <th style="text-align:right">S / F</th>
+          <th style="text-align:right">S [kN]</th>
+          <th>Art</th>
+        </tr></thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="results sketch-card" id="sketchCard">
+    <div class="sk-head no-print">
+      <div>
+        <h2>Technische Skizze</h2>
+        <p class="note">Für Arbeitsblätter: schwarze Stäbe, Winkel und Maßstab — ohne Kraftwerte. Beschriftungen stehen neben den Stäben.</p>
+      </div>
+      <div class="sk-actions">
+        <button class="btn" id="printSketch" type="button">Skizze drucken</button>
+        <button class="btn" id="pngSketch" type="button">Als PNG speichern</button>
+      </div>
+    </div>
+    <svg id="sketch" viewBox="0 0 860 520" role="img" aria-label="Technische Skizze des Fachwerks für Arbeitsblätter"></svg>
+  </section>
+
+  <footer class="foot no-print">Berechnung: Gleichgewicht an allen 7 Knoten (14 Gleichungen, 11 Stabkräfte + 3 Auflagerreaktionen) · A = Festlager, B = Loslager</footer>
+</div>
+
+<script>
+"use strict";
+const NS="http://www.w3.org/2000/svg";
+const COL={ink:"#1E293B",mut:"#64748B",red:"#E24B4A",reddk:"#C0392B",green:"#137B5E",
+           zero:"#8A94A6",wall:"#475569",hatch:"#94A3B8",black:"#000000",ann:"#3F4A5A"};
+const DEF={L:20,F:200,al:30,be:45,k:36};
+
+const BARS=[
+ {n:1,a:"I",b:"III"},{n:2,a:"II",b:"III"},{n:3,a:"III",b:"IV"},{n:4,a:"III",b:"V"},
+ {n:5,a:"I",b:"II"},{n:6,a:"IV",b:"V"},{n:7,a:"A",b:"I"},{n:8,a:"A",b:"II"},
+ {n:9,a:"II",b:"IV"},{n:10,a:"IV",b:"B"},{n:11,a:"V",b:"B"}];
+const IDX={A:0,B:1,I:2,II:3,III:4,IV:5,V:6};
+/* Seite der Beschriftung je Stab (+1 = links der Stabrichtung, wie in der Vorlage) */
+const SIDE={1:1,2:-1,3:-1,4:1,5:1,6:1,7:1,8:-1,9:-1,10:-1,11:1};
+/* Lage der Beschriftung entlang des Stabes (0.5 = Mitte); 8 und 10 rücken vom Auflager weg */
+const POS={8:0.66,10:0.34};
+
+function num(x,n){ return x.toFixed(n).replace(".",","); }
+function signed(x,n){ return (x>=0?"+":"\u2212")+num(Math.abs(x),n); }
+
+/* ---------- Geometrie ---------- */
+function geometry(L,alpha,beta,kPct){
+  if(beta-alpha<3) return {ok:false,reason:"Winkel β muss deutlich größer als α sein"};
+  const a=alpha*Math.PI/180, b=beta*Math.PI/180, k=kPct/100;
+  const l8=k*L, l7=l8*Math.cos(b-a);
+  const N={A:{x:0,y:0}, B:{x:L,y:0},
+    I:{x:l7*Math.cos(b), y:l7*Math.sin(b)},
+    II:{x:l8*Math.cos(a), y:l8*Math.sin(a)},
+    III:{x:L/2, y:(L/2)*Math.tan(b)}};
+  N.IV={x:L-N.II.x, y:N.II.y};
+  N.V ={x:L-N.I.x,  y:N.I.y};
+  if(N.IV.x-N.II.x<0.15) return {ok:false,reason:"Stab 9 verschwindet — die unteren Knoten überschneiden sich"};
+  if(N.I.y>N.III.y-0.15 || N.II.y>N.III.y-0.15) return {ok:false,reason:"Die Knoten liegen zu hoch — sie überschreiten die Spitze"};
+  return {ok:true,N};
+}
+
+/* ---------- Gleichungssystem ---------- */
+function gauss(M,rhs){
+  const n=rhs.length, a=M.map((r,i)=>r.concat([rhs[i]]));
+  for(let c=0;c<n;c++){
+    let p=c; for(let r=c+1;r<n;r++) if(Math.abs(a[r][c])>Math.abs(a[p][c])) p=r;
+    if(Math.abs(a[p][c])<1e-9) return null;
+    const t=a[c]; a[c]=a[p]; a[p]=t;
+    for(let r=0;r<n;r++){ if(r===c) continue; const f=a[r][c]/a[c][c]; if(!f) continue;
+      for(let q=c;q<=n;q++) a[r][q]-=f*a[c][q]; }
+  }
+  return a.map((r,i)=>r[n]/a[i][i]);
+}
+function solve(L,F,alpha,beta,kPct){
+  const geo=geometry(L,alpha,beta,kPct);
+  if(!geo.ok) return geo;
+  const N=geo.N;
+  const M=Array.from({length:14},()=>new Array(14).fill(0)), rhs=new Array(14).fill(0);
+  const len=[];
+  BARS.forEach((bar,j)=>{
+    const P=N[bar.a], Q=N[bar.b];
+    const dx=Q.x-P.x, dy=Q.y-P.y, l=Math.hypot(dx,dy);
+    len.push(l);
+    const ex=dx/l, ey=dy/l, ia=IDX[bar.a], ib=IDX[bar.b];
+    M[2*ia][j]+=ex; M[2*ia+1][j]+=ey;
+    M[2*ib][j]-=ex; M[2*ib+1][j]-=ey;
+  });
+  M[2*IDX.A][11]+=1;    // Ax  (Festlager)
+  M[2*IDX.A+1][12]+=1;  // Ay
+  M[2*IDX.B+1][13]+=1;  // By  (Loslager, nur vertikal)
+  rhs[2*IDX.III+1]=F;   // Last F nach unten an der Spitze
+  const x=gauss(M,rhs);
+  if(!x) return {ok:false,reason:"Diese Lage ist statisch nicht eindeutig lösbar"};
+  return {ok:true,N,len,F,L,S:x.slice(0,11),Ax:x[11],Ay:x[12],By:x[13]};
+}
+
+/* ---------- SVG ---------- */
+function el(t,at,tx){ const e=document.createElementNS(NS,t);
+  for(const k in at) e.setAttribute(k,at[k]); if(tx!==undefined) e.textContent=tx; return e; }
+function colOf(s,tol){ return Math.abs(s)<tol ? COL.zero : (s>0?COL.green:COL.red); }
+function niceLen(sp){ const t=sp/3.2, o=[1,2,5,10,20,50];
+  return o.reduce((b,v)=>Math.abs(v-t)<Math.abs(b-t)?v:b,o[0]); }
+function dir(p,q){ const dx=q.x-p.x, dy=q.y-p.y, L=Math.hypot(dx,dy)||1; return {x:dx/L,y:dy/L}; }
+
+/* F mit Vektorpfeil */
+function labelF(add,x,y,size,color){
+  add(el("text",{x:x.toFixed(1),y:y.toFixed(1),"font-family":"inherit","font-size":size,
+    "font-weight":"700","font-style":"italic",fill:color},"F"));
+  const top=y-size*0.98, x0=x+size*0.16, x1=x+size*0.88, t=x1+size*0.20;
+  add(el("line",{x1:x0.toFixed(1),y1:top.toFixed(1),x2:x1.toFixed(1),y2:top.toFixed(1),
+    stroke:color,"stroke-width":(size*0.085).toFixed(2),"stroke-linecap":"round"}));
+  add(el("polygon",{points:`${t.toFixed(1)},${top.toFixed(1)} ${(t-size*0.24).toFixed(1)},${(top-size*0.17).toFixed(1)} ${(t-size*0.24).toFixed(1)},${(top+size*0.17).toFixed(1)}`,fill:color}));
+}
+
+function renderTruss(target,r,o){
+  const W=o.W,H=o.H, sketch=o.mode==="sketch";
+  target.setAttribute("viewBox",`0 0 ${W} ${H}`);
+  target.textContent="";
+  const add=n=>target.appendChild(n);
+  const cBar=sketch?COL.black:null, cLine=sketch?COL.black:COL.ink;
+  const cAnn=sketch?COL.ann:COL.mut, cF=sketch?COL.black:COL.red, cDash=sketch?"#8A94A6":"#B6BECB";
+
+  if(!r.ok){
+    add(el("rect",{x:0,y:0,width:W,height:H,fill:"#FFFFFF"}));
+    add(el("circle",{cx:W/2,cy:H/2-24,r:26,fill:"none",stroke:COL.hatch,"stroke-width":"3"}));
+    add(el("line",{x1:W/2,y1:H/2-36,x2:W/2,y2:H/2-18,stroke:COL.hatch,"stroke-width":"3","stroke-linecap":"round"}));
+    add(el("circle",{cx:W/2,cy:H/2-9,r:2.4,fill:COL.hatch}));
+    add(el("text",{x:W/2,y:H/2+24,"text-anchor":"middle","font-family":"inherit","font-size":"16",
+      "font-weight":"600",fill:COL.mut},"Kein gültiges Fachwerk"));
+    return;
+  }
+
+  const N=r.N, L=r.L, apex=N.III.y;
+  const PADX=58, PADT=76, PADB=58;
+  const sc=Math.min((W-2*PADX)/L, (H-PADT-PADB)/apex);
+  const ox=PADX+((W-2*PADX)-L*sc)/2, oy=PADT+((H-PADT-PADB)-apex*sc)/2;
+  const px=p=>({x:ox+p.x*sc, y:oy+(apex-p.y)*sc});
+  const P={}; for(const k in N) P[k]=px(N[k]);
+
+  /* ---- Helfer: Beschriftungen kollisionsfrei setzen ---- */
+  const placed=[];
+  const SEG=BARS.map(b=>({p:P[b.a], q:P[b.b]}));
+  const box=(t,x,y,s)=>{ const w=t.length*s*0.58, h=s*1.05;
+    return {x0:x-w/2, y0:y-h*0.78, x1:x+w/2, y1:y+h*0.28}; };
+  const ovl=b=>{ let a=0; for(const q of placed){
+      const ox=Math.min(q.x1,b.x1)-Math.max(q.x0,b.x0), oy=Math.min(q.y1,b.y1)-Math.max(q.y0,b.y0);
+      if(ox>0&&oy>0) a+=ox*oy; } return a; };
+  const dSeg=(x,y,s)=>{ const dx=s.q.x-s.p.x, dy=s.q.y-s.p.y, L2=dx*dx+dy*dy||1;
+    let t=((x-s.p.x)*dx+(y-s.p.y)*dy)/L2; t=Math.max(0,Math.min(1,t));
+    return Math.hypot(x-(s.p.x+t*dx), y-(s.p.y+t*dy)); };
+  const barPen=(x,y,rad)=>{ let a=0; for(const s of SEG){ const d=dSeg(x,y,s); if(d<rad) a+=(rad-d)*55; } return a; };
+  const best=(cands,cost)=>{ let bi=0, bs=Infinity;
+    cands.forEach((c,i)=>{ const v=cost(c); if(v<bs-1e-9){ bs=v; bi=i; } }); return cands[bi]; };
+  const put=(t,x,y,s,fill,weight)=>{ placed.push(box(t,x,y,s));
+    add(el("text",{x:x.toFixed(1), y:y.toFixed(1), "text-anchor":"middle", "font-family":"inherit",
+      "font-size":s, "font-weight":weight||"700", fill:fill,
+      stroke:"#FFFFFF","stroke-width":"3","paint-order":"stroke","stroke-linejoin":"round"}, t)); };
+
+  /* gestrichelte Hilfslinien wie in der Vorlage */
+  add(el("line",{x1:P.A.x-34,y1:P.A.y,x2:P.B.x+34,y2:P.B.y,stroke:cDash,"stroke-width":"1","stroke-dasharray":"7 5"}));
+  add(el("line",{x1:P.III.x,y1:P.III.y,x2:P.III.x,y2:P.A.y,stroke:cDash,"stroke-width":"1","stroke-dasharray":"7 5"}));
+
+  /* Auflager: A Festlager, B Loslager */
+  function support(Q,roller){
+    add(el("polygon",{points:`${Q.x},${Q.y} ${Q.x-12},${Q.y+19} ${Q.x+12},${Q.y+19}`,
+      fill:"#FFFFFF",stroke:cLine,"stroke-width":"1.6"}));
+    const yb=Q.y+19+(roller?5:0);
+    if(roller){
+      add(el("circle",{cx:Q.x-6,cy:Q.y+22.5,r:3.4,fill:"#FFFFFF",stroke:cLine,"stroke-width":"1.3"}));
+      add(el("circle",{cx:Q.x+6,cy:Q.y+22.5,r:3.4,fill:"#FFFFFF",stroke:cLine,"stroke-width":"1.3"}));
+    }
+    const y0=roller?Q.y+26:Q.y+19;
+    add(el("line",{x1:Q.x-16,y1:y0,x2:Q.x+16,y2:y0,stroke:cLine,"stroke-width":"1.5"}));
+    for(let i=-15;i<=13;i+=5)
+      add(el("line",{x1:Q.x+i,y1:y0+8,x2:Q.x+i+5,y2:y0,stroke:cAnn,"stroke-width":"1"}));
+    add(el("circle",{cx:Q.x,cy:Q.y,r:4,fill:"#FFFFFF",stroke:cLine,"stroke-width":"1.6"}));
+  }
+  support(P.A,false); support(P.B,true);
+
+  /* Stäbe */
+  const Smax=Math.max(...r.S.map(Math.abs),1e-6);
+  const tol=Math.max(1e-6, r.F*1e-4);
+  BARS.forEach((bar,i)=>{
+    const p=P[bar.a], q=P[bar.b], s=r.S[i];
+    const col=sketch?cBar:colOf(s,tol);
+    const w=sketch?2.3:(2.2+3.0*Math.abs(s)/Smax);
+    add(el("line",{x1:p.x,y1:p.y,x2:q.x,y2:q.y,stroke:col,"stroke-width":w.toFixed(2),"stroke-linecap":"round"}));
+  });
+
+  /* Last F an der Spitze (Pfeil von oben) */
+  const aTop=P.III.y-(sketch?66:60);
+  add(el("line",{x1:P.III.x,y1:aTop,x2:P.III.x,y2:P.III.y-7,stroke:cF,"stroke-width":"2.5","stroke-linecap":"round"}));
+  add(el("polygon",{points:`${P.III.x},${P.III.y-1} ${P.III.x-5.4},${P.III.y-12} ${P.III.x+5.4},${P.III.y-12}`,fill:cF}));
+  labelF(add,P.III.x+12,aTop+15,sketch?18:16,cF);
+  placed.push({x0:P.III.x-4, y0:aTop-6, x1:P.III.x+34, y1:aTop+(sketch?20:34)});
+  if(!sketch)
+    add(el("text",{x:P.III.x+12,y:aTop+31,"font-family":"inherit","font-size":"12","font-weight":"600",
+      fill:COL.reddk},num(r.F,0)+" kN"));
+
+  /* Knoten */
+  ["I","II","III","IV","V"].forEach(k=>
+    add(el("circle",{cx:P[k].x,cy:P[k].y,r:sketch?4.2:4.6,fill:cLine})));
+
+  /* --- 1. Winkel α und β an den Auflagern (wie in der Vorlage) --- */
+  if(o.showAngles){
+    const l7px=Math.hypot(P.I.x-P.A.x, P.I.y-P.A.y);
+    const l8px=Math.hypot(P.II.x-P.A.x, P.II.y-P.A.y);
+    const Rb=Math.max(30, Math.min(74, 0.42*Math.min(l7px,l8px)));
+    const Ra=Rb*0.62;
+    const arc=(V,d1,d2,R)=>{
+      const a1=Math.atan2(d1.y,d1.x), a2=Math.atan2(d2.y,d2.x);
+      let dl=a2-a1; while(dl<=-Math.PI) dl+=2*Math.PI; while(dl>Math.PI) dl-=2*Math.PI;
+      const deg=Math.abs(dl)*180/Math.PI;
+      if(deg<4) return;
+      const st={x:V.x+R*d1.x,y:V.y+R*d1.y}, en={x:V.x+R*d2.x,y:V.y+R*d2.y};
+      add(el("path",{d:`M ${st.x.toFixed(1)} ${st.y.toFixed(1)} A ${R} ${R} 0 0 ${dl>0?1:0} ${en.x.toFixed(1)} ${en.y.toFixed(1)}`,
+        fill:"none",stroke:cAnn,"stroke-width":"1.3"}));
+      const txt=Math.round(deg)+"\u00B0", sz=sketch?13:12, cands=[];
+      [0.5,0.34,0.66,0.2,0.8,-0.3,1.3].forEach(f=>[R+15,R+28,R+42].forEach(lr=>{
+        const ang=a1+dl*f;
+        cands.push({f, lr, ang, x:V.x+lr*Math.cos(ang), y:V.y+lr*Math.sin(ang)+sz*0.35,
+          pen:Math.abs(f-0.5)*24 + (lr-R-15)*0.8});
+      }));
+      const c=best(cands, c=>ovl(box(txt,c.x,c.y,sz))+barPen(c.x,c.y,12)+c.pen);
+      /* Führungslinie, wenn das Label dem Bogen ausweichen musste */
+      const fc=Math.max(0,Math.min(1,c.f));
+      const s0={x:V.x+(R+2)*Math.cos(a1+dl*fc), y:V.y+(R+2)*Math.sin(a1+dl*fc)};
+      const vx=c.x-s0.x, vy=(c.y-sz*0.35)-s0.y, vl=Math.hypot(vx,vy)||1;
+      if(vl>22)
+        add(el("line",{x1:s0.x.toFixed(1), y1:s0.y.toFixed(1),
+          x2:(c.x-vx/vl*12).toFixed(1), y2:((c.y-sz*0.35)-vy/vl*12).toFixed(1),
+          stroke:cAnn,"stroke-width":"0.9"}));
+      put(txt,c.x,c.y,sz,cAnn,"600");
+    };
+    arc(P.A,{x: 1,y:0},dir(P.A,P.II),Ra);   // α links
+    arc(P.A,{x: 1,y:0},dir(P.A,P.I ),Rb);   // β links
+    arc(P.B,{x:-1,y:0},dir(P.B,P.IV),Ra);   // α rechts
+    arc(P.B,{x:-1,y:0},dir(P.B,P.V ),Rb);   // β rechts
+  }
+
+  /* --- 2. Auflagerbeschriftung: immer neben dem Auflager --- */
+  const supLbl=(Q,txt,sx,size)=>{
+    const cands=[];
+    [25,34].forEach(R=>[[sx,0],[sx,-0.75],[sx,0.75],[sx,-1.5]].forEach(d=>{
+      const l=Math.hypot(d[0],d[1]);
+      cands.push({x:Q.x+d[0]/l*R, y:Q.y+d[1]/l*R+size*0.35, R});
+    }));
+    const c=best(cands, c=>ovl(box(txt,c.x,c.y,size))+barPen(c.x,c.y,13)+(c.R-25)*0.7);
+    put(txt,c.x,c.y,size,cLine);
+  };
+  supLbl(P.A,"A",-1,sketch?17:16);
+  supLbl(P.B,"B", 1,sketch?17:16);
+
+  /* --- 3. Knotenbeschriftung: immer neben dem Knoten --- */
+  const DIRS=[[0,-1],[1,-0.65],[-1,-0.65],[1,0.65],[-1,0.65],[0,1],[1,0],[-1,0]];
+  const nodeLbl=(key,txt)=>{
+    const Q=P[key], size=sketch?15:14.5, cands=[];
+    [17,26,35].forEach(R=>DIRS.forEach(d=>{
+      const l=Math.hypot(d[0],d[1]);
+      cands.push({x:Q.x+d[0]/l*R, y:Q.y+d[1]/l*R+size*0.35, R});
+    }));
+    const c=best(cands, c=>ovl(box(txt,c.x,c.y,size))+barPen(c.x,c.y,13)+(c.R-17)*0.8);
+    put(txt,c.x,c.y,size,cLine);
+  };
+  ["I","II","III","IV","V"].forEach(k=>nodeLbl(k,k));
+
+  /* --- 4. Stabnummern neben dem Stab (unterbrechen ihn nicht) + Kraftwert (nur live) --- */
+  BARS.forEach((bar,i)=>{
+    const p=P[bar.a], q=P[bar.b], s=r.S[i];
+    const t0=POS[bar.n]||0.5;
+    /* Normale in realen Koordinaten (y nach oben), dann auf Pixel spiegeln */
+    const Pr=N[bar.a], Qr=N[bar.b];
+    let rx=Qr.x-Pr.x, ry=Qr.y-Pr.y; const rl=Math.hypot(rx,ry)||1; rx/=rl; ry/=rl;
+    const nTxt=String(bar.n), nSz=sketch?15:13;
+    const vTxt=(Math.abs(s)<tol?"0":signed(s,0))+" kN", vSz=11.5;
+    const dy0=sketch?5:1, cands=[];
+    [0,0.15,-0.15,0.28,-0.28].forEach(ts=>
+      [SIDE[bar.n],-SIDE[bar.n]].forEach((sg,fi)=>
+        [0,13,26].forEach(ex=>{
+          const t=Math.max(0.16, Math.min(0.84, t0+ts));
+          const mx=p.x+(q.x-p.x)*t, my=p.y+(q.y-p.y)*t;
+          const dx=sg*(-ry), dy=-(sg*rx), off=(sketch?19:21)+ex;
+          cands.push({x:mx+dx*off, y:my+dy*off, pen:Math.abs(ts)*70+fi*45+ex*0.9});
+        })));
+    const c=best(cands, c=>{
+      let v=ovl(box(nTxt,c.x,c.y+dy0,nSz))+barPen(c.x,c.y,13)+c.pen;
+      if(!sketch) v+=ovl(box(vTxt,c.x,c.y+14,vSz))+barPen(c.x,c.y+14,12);
+      return v;
+    });
+    put(nTxt,c.x,c.y+dy0,nSz,sketch?COL.black:COL.ink);
+    if(!sketch) put(vTxt,c.x,c.y+14,vSz,colOf(s,tol));
+  });
+
+  /* Maßstab */
+  const Lm=niceLen(L), Lpx=Lm*sc, sx2=W-24, sx1=sx2-Lpx, sy=24;
+  if(Lpx>26 && Lpx<W*0.5){
+    add(el("line",{x1:sx1,y1:sy,x2:sx2,y2:sy,stroke:cAnn,"stroke-width":"1.2"}));
+    add(el("line",{x1:sx1,y1:sy-5,x2:sx1,y2:sy+5,stroke:cAnn,"stroke-width":"1.2"}));
+    add(el("line",{x1:sx2,y1:sy-5,x2:sx2,y2:sy+5,stroke:cAnn,"stroke-width":"1.2"}));
+    add(el("text",{x:(sx1+sx2)/2,y:sy-9,"text-anchor":"middle","font-family":"inherit","font-size":"12",fill:cAnn},Lm+" m"));
+  }
+}
+
+/* ---------- Tabelle ---------- */
+const tbody=document.getElementById("tbody");
+const reacts=document.getElementById("reacts");
+function renderTable(r){
+  tbody.textContent="";
+  const tol=r.ok?Math.max(1e-6,r.F*1e-4):0;
+  BARS.forEach((bar,i)=>{
+    const tr=document.createElement("tr");
+    const s=r.ok?r.S[i]:null;
+    let art="–", col="var(--mut)";
+    if(s!==null){
+      if(Math.abs(s)<tol){ art="Nullstab"; col="var(--zero)"; }
+      else if(s>0){ art="Zug"; col="var(--green)"; }
+      else { art="Druck"; col="var(--red)"; }
+    }
+    tr.innerHTML=
+      `<td><span class="badge">${bar.n}</span></td>`+
+      `<td>${bar.a} – ${bar.b}</td>`+
+      `<td class="num">${r.ok?num(r.len[i],2):"–"}</td>`+
+      `<td class="num">${s===null?"–":(Math.abs(s)<tol?"0":signed(s/r.F,3))}</td>`+
+      `<td class="num">${s===null?"–":(Math.abs(s)<tol?"0":signed(s,1))}</td>`+
+      `<td class="art" style="color:${col}">${art}</td>`;
+    tbody.appendChild(tr);
+  });
+  reacts.textContent="";
+  const items = r.ok
+    ? [["A", "waagerecht", signed(r.Ax,1)+" kN"],["A","senkrecht",signed(r.Ay,1)+" kN"],["B","senkrecht",signed(r.By,1)+" kN"]]
+    : [["A","waagerecht","–"],["A","senkrecht","–"],["B","senkrecht","–"]];
+  items.forEach(([n,d,v])=>{
+    const s=document.createElement("span");
+    s.className="chip";
+    s.innerHTML=`<b>Auflager ${n} ${d}</b>${v}`;
+    reacts.appendChild(s);
+  });
+}
+
+/* ---------- Steuerung ---------- */
+const ids=["L","F","al","be","k"];
+const inp={}; ids.forEach(i=>inp[i]=document.getElementById(i));
+const drawSvg=document.getElementById("draw");
+const sketchSvg=document.getElementById("sketch");
+const statusEl=document.getElementById("status");
+const statusText=document.getElementById("statusText");
+
+function update(){
+  const v={}; ids.forEach(i=>v[i]=parseFloat(inp[i].value));
+  document.getElementById("v_L").innerHTML=num(v.L,1)+" <em>m</em>";
+  document.getElementById("v_F").innerHTML=num(v.F,0)+" <em>kN</em>";
+  document.getElementById("v_al").innerHTML=num(v.al,0)+" <em>°</em>";
+  document.getElementById("v_be").innerHTML=num(v.be,0)+" <em>°</em>";
+  document.getElementById("v_k").innerHTML=num(v.k,0)+" <em>% der Spannweite</em>";
+  const showAngles=document.getElementById("showAngles").checked;
+  const r=solve(v.L,v.F,v.al,v.be,v.k);
+  renderTruss(drawSvg,  r,{W:760,H:480,mode:"live",  showAngles});
+  renderTruss(sketchSvg,r,{W:860,H:520,mode:"sketch",showAngles});
+  renderTable(r);
+  if(r.ok){ statusEl.className="status ok"; statusEl.querySelector(".ic").textContent="✓";
+    statusText.textContent="gültiges Fachwerk · statisch bestimmt (11 Stäbe + 3 Auflagerkräfte = 2 · 7 Knoten)"; }
+  else { statusEl.className="status bad"; statusEl.querySelector(".ic").textContent="!";
+    statusText.textContent=r.reason; }
+}
+
+function sketchToPng(){
+  const vb=sketchSvg.getAttribute("viewBox").split(/[\s,]+/).map(Number);
+  const W=vb[2],H=vb[3],scale=3;
+  const c2=sketchSvg.cloneNode(true);
+  c2.setAttribute("xmlns",NS); c2.setAttribute("width",W); c2.setAttribute("height",H);
+  c2.setAttribute("font-family",'"Segoe UI", system-ui, Arial, sans-serif');
+  c2.insertBefore(el("rect",{x:0,y:0,width:W,height:H,fill:"#FFFFFF"}),c2.firstChild);
+  const src=new XMLSerializer().serializeToString(c2);
+  const bytes=new TextEncoder().encode(src);
+  let bin=""; bytes.forEach(b=>bin+=String.fromCharCode(b));
+  const img=new Image();
+  img.onload=()=>{
+    const cv=document.createElement("canvas");
+    cv.width=W*scale; cv.height=H*scale;
+    const ctx=cv.getContext("2d");
+    ctx.fillStyle="#FFFFFF"; ctx.fillRect(0,0,cv.width,cv.height);
+    ctx.drawImage(img,0,0,cv.width,cv.height);
+    cv.toBlob(b=>{ const a=document.createElement("a");
+      a.href=URL.createObjectURL(b); a.download="Fachwerk-Skizze.png"; a.click();
+      setTimeout(()=>URL.revokeObjectURL(a.href),2000); },"image/png");
+  };
+  img.onerror=()=>window.print();
+  img.src="data:image/svg+xml;base64,"+btoa(bin);
+}
+
+ids.forEach(i=>inp[i].addEventListener("input",update));
+document.getElementById("showAngles").addEventListener("change",update);
+document.getElementById("reset").addEventListener("click",()=>{
+  ids.forEach(i=>inp[i].value=DEF[i]); update();
+});
+document.getElementById("printSketch").addEventListener("click",()=>window.print());
+document.getElementById("pngSketch").addEventListener("click",sketchToPng);
+
+update();
+</script>
+</body>
+</html>

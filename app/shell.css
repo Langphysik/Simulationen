@@ -1,0 +1,38 @@
+/* App-Rahmen: gemeinsame Kopfleiste und Handy-Anordnung für alle Simulationen */
+:root{ --appbar-h:calc(46px + env(safe-area-inset-top,0px)) }
+html{ padding-top:var(--appbar-h) !important; scroll-padding-top:var(--appbar-h) }
+
+.appbar{
+  position:fixed; inset:0 0 auto 0; z-index:1000;
+  height:var(--appbar-h); padding:env(safe-area-inset-top,0px) 12px 0 4px;
+  display:flex; align-items:center; gap:6px;
+  background:#1E293B; color:#fff;
+  font:600 15px/1.2 "Segoe UI",system-ui,-apple-system,Roboto,Helvetica,Arial,sans-serif;
+}
+.appbar a{
+  display:flex; align-items:center; gap:4px; flex:none;
+  min-height:44px; padding:0 10px 0 8px; border-radius:8px;
+  color:#fff; text-decoration:none; font-weight:500; font-size:14px;
+}
+.appbar a:hover{ background:rgba(255,255,255,.1) }
+.appbar a:focus-visible{ outline:2px solid #fff; outline-offset:-3px }
+.appbar svg{ display:block; width:18px; height:18px; flex:none }
+.appbar span{
+  margin-left:auto; min-width:0;
+  overflow:hidden; white-space:nowrap; text-overflow:ellipsis;
+}
+
+/* Handy hochkant: Zeichnung steht oben und bleibt beim Bedienen der Regler sichtbar */
+@media (max-width:860px) and (orientation:portrait){
+  .stick-stage .stage{
+    order:-1; position:sticky; top:var(--appbar-h); z-index:20;
+  }
+  .stick-stage .stage > svg{ max-height:38vh }
+  /* Kletterwand: Hinweis unter die Ansicht, damit er keine Beschriftung verdeckt */
+  .stick-stage .stage > .hint{ position:static; padding:4px 8px 0; background:none }
+}
+
+@media print{
+  .appbar{ display:none !important }
+  html{ padding-top:0 !important }
+}
